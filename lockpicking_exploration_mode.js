@@ -1,8 +1,16 @@
-const colors = {
-  critical_success: 'rgb(0, 128, 0)',
-  success: 'rgb(0, 0, 255)',
-  failure: 'rgb(255, 69, 0)',
-  critical_failure: 'rgb(255, 0, 0)',
+class SuccessDegree {
+  constructor(name, pin_progress, color) {
+    this.name = name;
+    this.pin_progress = pin_progress;
+    this.color = color;
+  }
+}
+
+const success_degrees = {
+  CritSuccess: new SuccessDegree("Critical Success", 2, 'rgb(0, 128, 0)'),
+  Success: new SuccessDegree("Success", 1, 'rgb(0, 0, 255)'),
+  Failure: new SuccessDegree("Failure", 0, 'rgb(255, 69, 0)'),
+  CritFailure: new SuccessDegree("Critical Failure", -1, 'rgb(255, 0, 0)'),
 }
 
 
@@ -33,9 +41,16 @@ class PickAttempt {
   }
 }
 
-const is_overall_crit_failure = (pick_attempts) => pick_attempts.map(attempt => attempt.success_degree).includes(-1);
-const is_overall_crit_success = (pick_attempts) => pick_attempts.map(attempt => attempt.success_degree).every(num => num === 2);
-const count_set_pins = (pick_attempts) => pick_attempts.map(attempt => Math.max(attempt.success_degree, 0)).reduce((acc, num) => acc + num, 0);
+const is_overall_crit_failure = (pick_attempts) => pick_attempts.map(attempt => attempt.success_degree).includes(success_degrees.CritFailure);
+const is_overall_crit_success = (pick_attempts) => pick_attempts.every(attempt => attempt.success_degree === success_degrees.CritSuccess);
+const count_set_pins = (pick_attempts) => pick_attempts.map(attempt => Math.max(attempt.success_degree.pin_progress, 0)).reduce((acc, num) => acc + num, 0);
+
+function get_overall_sucess_degree(pick_attempts) {
+  if (is_overall_crit_failure(pick_attempts)) { return success_degrees.CritFailure; }
+  if (is_overall_crit_success(pick_attempts)) { return success_degrees.CritSuccess; }
+
+  return success_degrees.Success;
+}
 
 
 
@@ -45,30 +60,22 @@ async function determine_lockpicking_success(bonuses, dc) {
   roll_value = roll._total;
   const check_value = roll_value + bonuses;
   
-  let success_degree = 0;
-  if (check_value >= dc + 10) { success_degree = 2; }
-  else if (check_value >= dc) { success_degree = 1; }
-  else if (check_value >= dc - 9) { success_degree = 0; }
-  else if (check_value <= dc - 10) { success_degree = -1; }
+  let success_indicator = 0;
+  if (check_value >= dc + 10) { success_indicator = 2; }
+  else if (check_value >= dc) { success_indicator = 1; }
+  else if (check_value >= dc - 9) { success_indicator = 0; }
+  else if (check_value <= dc - 10) { success_indicator = -1; }
 
-  if (roll_value == 20) { success_degree = Math.min(2, success_degree + 1) }
-  if (roll_value == 1) { success_degree = Math.max(-1, success_degree - 1) }
+  if (roll_value === 20) { success_indicator = Math.min(2, success_indicator + 1) }
+  if (roll_value === 1) { success_indicator = Math.max(-1, success_indicator - 1) }
+
+  const success_degree = Object.values(success_degrees).find(degree => degree.pin_progress === success_indicator);
 
   return new PickAttempt(roll_value, check_value, success_degree);
 }
 
 function get_title_html(pick_attempts, lock) {
-  let result_line = "";
-  if (is_overall_crit_failure(pick_attempts)) {
-    result_text = "Critical Failure";
-    result_color = colors.critical_failure;
-  } else if (is_overall_crit_success(pick_attempts)) {
-    result_text = "Critical Success";
-    result_color = colors.critical_success;
-  } else {
-    result_text = "Success";
-    result_color = colors.success;
-  }
+  let overall_success = get_overall_sucess_degree(pick_attempts);
   return `
     <span style="font-size: var(--font-size-12);">
       <h4 class="action">
@@ -79,7 +86,7 @@ function get_title_html(pick_attempts, lock) {
         <div class="target-dc">
           <span>Target: ${lock.quality_name} Lock</span> <span>(DC ${lock.dc})</span>
         </div>
-        <div>Result: <span style="color:${result_color}">${result_text}</span></div>
+        <div>Result: <span style="color:${overall_success.color}">${overall_success.name}</span></div>
       </div>
     </span>
   `
@@ -170,11 +177,11 @@ await Dialog.prompt({
       const new_pick_attempt = await determine_lockpicking_success(total_bonus, lock.dc);
       pick_attempts.push(new_pick_attempt);
       
-      if (new_pick_attempt.success_degree == -1) {
+      if (new_pick_attempt.success_degree === success_degrees.CritFailure) {
         break
       }
 
-      correctly_set_pins += new_pick_attempt.success_degree;
+      correctly_set_pins += new_pick_attempt.success_degree.pin_progress;
     }
 
     chat_print_lockpicking_summary(pick_attempts, lock);
