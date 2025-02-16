@@ -53,6 +53,8 @@ function get_overall_sucess_degree(pick_attempts) {
 }
 
 
+const number_with_sign = (num) => `${num >= 0 ? "+" : ""}${num}`
+
 
 async function determine_lockpicking_success(bonuses, dc) {
   const roll = await new Roll('1d20').roll();
@@ -101,11 +103,9 @@ function get_lockpicking_traits_html() {
 }
 
 function get_thievery_modifiers_html() {
-  const signed = (num) => `${num >= 0 ? "+" : ""}${num}`
-
   let = modifiers = actor.skills.thievery.modifiers;
   modifiers = modifiers.filter(item => item.enabled);
-  let modifier_tags = modifiers.map((mod) => `<span class="tag tag_transparent" data-slug="${mod.slug}}">${mod.label} ${signed(mod.modifier)}</span>`);
+  let modifier_tags = modifiers.map((mod) => `<span class="tag tag_transparent" data-slug="${mod.slug}}">${mod.label} ${number_with_sign(mod.modifier)}</span>`);
 
 
   const modifier_tag_div = `
@@ -115,6 +115,25 @@ function get_thievery_modifiers_html() {
   `;
 
   return modifier_tag_div;
+}
+
+function get_individual_step_html(pick_attempts, lock) {
+  attempt_descriptions = pick_attempts.map(attempt => {
+    const diff_to_dc = number_with_sign(attempt.check_value - lock.dc);
+    const success_degree = attempt.success_degree;
+    return `
+      <p>
+        <span class="action-glyph">2</span>
+        <span style="color:${success_degree.color}">${success_degree.name}</span> by ${diff_to_dc}
+      <p/>
+    `;
+  });
+
+  return `
+    <div>
+      ${attempt_descriptions.join("\n")}
+    </div>
+  `;
 }
 
 function chat_print_lockpicking_summary(pick_attempts, lock) {
@@ -134,6 +153,7 @@ function chat_print_lockpicking_summary(pick_attempts, lock) {
       ${get_lockpicking_traits_html()}
       <hr />
       ${get_thievery_modifiers_html()}
+      ${get_individual_step_html(pick_attempts, lock)}
       ${summary}
       <p>${scratch_summary}</p>
     `,
