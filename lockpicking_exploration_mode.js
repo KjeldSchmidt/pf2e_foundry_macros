@@ -102,11 +102,14 @@ function get_lockpicking_traits_html() {
   `
 }
 
-function get_thievery_modifiers_html() {
+function get_thievery_modifiers_html(ad_hoc_skill_bonus) {
   let = modifiers = actor.skills.thievery.modifiers;
   modifiers = modifiers.filter(item => item.enabled);
   let modifier_tags = modifiers.map((mod) => `<span class="tag tag_transparent" data-slug="${mod.slug}}">${mod.label} ${number_with_sign(mod.modifier)}</span>`);
 
+  if (ad_hoc_skill_bonus !== 0) {
+    modifier_tags.push(`<span class="tag tag_transparent"}">Other ${number_with_sign(ad_hoc_skill_bonus)}</span>`);
+  }
 
   const modifier_tag_div = `
     <div class="tags modifiers">
@@ -136,7 +139,7 @@ function get_individual_step_html(pick_attempts, lock) {
   `;
 }
 
-function chat_print_lockpicking_summary(pick_attempts, lock) {
+function chat_print_lockpicking_summary(pick_attempts, lock, ad_hoc_skill_bonus) {
   const correctly_set_pins = count_set_pins(pick_attempts);
   const success_summary = `<p>Success after ${pick_attempts.length} rounds.`
   const failure_summary = `<p>After ${pick_attempts.length} rounds and ${correctly_set_pins} out of ${lock.required_successes} set pins, the pick broke.</p>`
@@ -152,7 +155,7 @@ function chat_print_lockpicking_summary(pick_attempts, lock) {
       ${get_title_html(pick_attempts, lock)}
       ${get_lockpicking_traits_html()}
       <hr />
-      ${get_thievery_modifiers_html()}
+      ${get_thievery_modifiers_html(ad_hoc_skill_bonus)}
       ${get_individual_step_html(pick_attempts, lock)}
       ${summary}
       <p>${scratch_summary}</p>
@@ -204,6 +207,6 @@ await Dialog.prompt({
       correctly_set_pins += new_pick_attempt.success_degree.pin_progress;
     }
 
-    chat_print_lockpicking_summary(pick_attempts, lock);
+    chat_print_lockpicking_summary(pick_attempts, lock, other_bonuses);
   }
 });
