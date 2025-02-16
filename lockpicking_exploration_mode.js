@@ -5,6 +5,8 @@ const colors = {
   critical_failure: 'rgb(255, 0, 0)',
 }
 
+
+
 class Lock {
   constructor(required_successes, dc, quality_name) {
     this.required_successes = required_successes;
@@ -22,33 +24,45 @@ const locks = {
 };
 
 
+
+class PickAttempt {
+  constructor(roll, check_value, success_degree) {
+    this.roll = roll;
+    this.check_value = check_value;
+    this.success_degree = success_degree;
+  }
+}
+
+const is_overall_crit_failure = (pick_attempts) => pick_attempts.map(attempt => attempt.success_degree).includes(-1);
+const is_overall_crit_success = (pick_attempts) => pick_attempts.map(attempt => attempt.success_degree).every(num => num === 2);
+const count_set_pins = (pick_attempts) => pick_attempts.map(attempt => Math.max(attempt.success_degree, 0)).reduce((acc, num) => acc + num, 0);
+
+
+
 async function determine_lockpicking_success(bonuses, dc) {
   const roll = await new Roll('1d20').roll();
   game.dice3d?.showForRoll(roll);
   roll_value = roll._total;
   const check_value = roll_value + bonuses;
   
-  let success_value = 0;
-  if (check_value >= dc + 10) { success_value = 2; }
-  else if (check_value >= dc) { success_value = 1; }
-  else if (check_value >= dc - 9) { success_value = 0; }
-  else if (check_value <= dc - 10) { success_value = -1; }
+  let success_degree = 0;
+  if (check_value >= dc + 10) { success_degree = 2; }
+  else if (check_value >= dc) { success_degree = 1; }
+  else if (check_value >= dc - 9) { success_degree = 0; }
+  else if (check_value <= dc - 10) { success_degree = -1; }
 
-  if (roll_value == 20) { success_value = Math.min(2, success_value + 1) }
-  if (roll_value == 1) { success_value = Math.max(-1, success_value - 1) }
+  if (roll_value == 20) { success_degree = Math.min(2, success_degree + 1) }
+  if (roll_value == 1) { success_degree = Math.max(-1, success_degree - 1) }
 
-  return [success_value, check_value];
+  return new PickAttempt(roll_value, check_value, success_degree);
 }
 
-const is_overall_crit_failure = (pick_success_degrees) => pick_success_degrees.includes(-1);
-const is_overall_crit_success = (pick_success_degrees) => pick_success_degrees.every(num => num === 2);
-
-function get_title_html(lock, pick_success_degrees) {
+function get_title_html(pick_attempts, lock) {
   let result_line = "";
-  if (is_overall_crit_failure(pick_success_degrees)) {
+  if (is_overall_crit_failure(pick_attempts)) {
     result_text = "Critical Failure";
     result_color = colors.critical_failure;
-  } else if (is_overall_crit_success(pick_success_degrees)) {
+  } else if (is_overall_crit_success(pick_attempts)) {
     result_text = "Critical Success";
     result_color = colors.critical_success;
   } else {
@@ -80,7 +94,7 @@ function get_lockpicking_traits_html() {
 }
 
 function get_thievery_modifiers_html() {
-  signed = (num) => `${num >= 0 ? "+" : ""}${num}`
+  const signed = (num) => `${num >= 0 ? "+" : ""}${num}`
 
   let = modifiers = actor.skills.thievery.modifiers;
   modifiers = modifiers.filter(item => item.enabled);
@@ -96,19 +110,20 @@ function get_thievery_modifiers_html() {
   return modifier_tag_div;
 }
 
-function chat_print_lockpicking_summary(number_of_progresses, pick_success_degrees, lock) {
-  const success_summary = `<p>Success after ${pick_success_degrees.length} rounds.`
-  const failure_summary = `<p>After ${pick_success_degrees.length} rounds and ${number_of_progresses} out of ${lock.required_successes} set pins, the pick broke.</p>`
-  const summary = is_overall_crit_failure(pick_success_degrees) ? failure_summary : success_summary;
+function chat_print_lockpicking_summary(pick_attempts, lock) {
+  const correctly_set_pins = count_set_pins(pick_attempts);
+  const success_summary = `<p>Success after ${pick_attempts.length} rounds.`
+  const failure_summary = `<p>After ${pick_attempts.length} rounds and ${correctly_set_pins} out of ${lock.required_successes} set pins, the pick broke.</p>`
+  const summary = is_overall_crit_failure(pick_attempts) ? failure_summary : success_summary;
   
   let scratch_summary = "You left behind damage that indicates the lock was picked on close scrutiny.";
-  if (is_overall_crit_success(pick_success_degrees)) { scratch_summary = "No visible damage was left on the lock."; } 
-  if (is_overall_crit_failure(pick_success_degrees)) { scratch_summary = "You leave behind obvious damage."; }
+  if (is_overall_crit_success(pick_attempts)) { scratch_summary = "No visible damage was left on the lock."; } 
+  if (is_overall_crit_failure(pick_attempts)) { scratch_summary = "You leave behind obvious damage."; }
 
 
   ChatMessage.create({
     content: `
-      ${get_title_html(lock, pick_success_degrees)}
+      ${get_title_html(pick_attempts, lock)}
       ${get_lockpicking_traits_html()}
       <hr />
       ${get_thievery_modifiers_html()}
@@ -147,25 +162,21 @@ await Dialog.prompt({
     const lock = locks[lock_name];
     const other_bonuses = parseInt(html.find('[name="bonuses"]').val());
 
-    let actual_progress_count = 0;
-    const pick_success_degrees = [];
-    const pick_check_values = [];
-    let crit_failed = false;
+    let correctly_set_pins = 0;
+    const pick_attempts = [];
     const total_bonus = parseInt(actor.skills.thievery.check.mod) + other_bonuses;
 
-    while (actual_progress_count < lock.required_successes && !crit_failed) {
-      const [new_successes, check_value] = await determine_lockpicking_success(total_bonus, lock.dc);
-      pick_success_degrees.push(new_successes);
-      pick_check_values.push(check_value);
+    while (correctly_set_pins < lock.required_successes) {
+      const new_pick_attempt = await determine_lockpicking_success(total_bonus, lock.dc);
+      pick_attempts.push(new_pick_attempt);
       
-      if (new_successes == -1) {
-        crit_failed = true;
-        continue;
+      if (new_pick_attempt.success_degree == -1) {
+        break
       }
 
-      actual_progress_count += new_successes;
+      correctly_set_pins += new_pick_attempt.success_degree;
     }
 
-    chat_print_lockpicking_summary(actual_progress_count, pick_success_degrees, lock);
+    chat_print_lockpicking_summary(pick_attempts, lock);
   }
 });
