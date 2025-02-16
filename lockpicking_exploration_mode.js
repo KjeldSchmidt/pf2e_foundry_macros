@@ -40,12 +40,15 @@ async function determine_lockpicking_success(bonuses, dc) {
   return [success_value, check_value];
 }
 
+const is_overall_crit_failure = (pick_success_degrees) => pick_success_degrees.includes(-1);
+const is_overall_crit_success = (pick_success_degrees) => pick_success_degrees.every(num => num === 2);
+
 function get_title_html(lock, pick_success_degrees) {
   let result_line = "";
-  if (pick_success_degrees.includes(-1)) {
+  if (is_overall_crit_failure(pick_success_degrees)) {
     result_text = "Critical Failure";
     result_color = colors.critical_failure;
-  } else if (pick_success_degrees.every(num => num === 2)) {
+  } else if (is_overall_crit_success(pick_success_degrees)) {
     result_text = "Critical Success";
     result_color = colors.critical_success;
   } else {
@@ -93,28 +96,24 @@ function get_thievery_modifiers_html() {
   return modifier_tag_div;
 }
 
-function chat_print_lockpicking_failure(number_of_progresses, pick_success_degrees, lock) {
-  ChatMessage.create({
-    content: `
-      ${get_title_html(lock, pick_success_degrees)}
-      ${get_lockpicking_traits_html()}
-      <hr />
-      ${get_thievery_modifiers_html()}
-      <p>After ${pick_success_degrees.length} actions and ${number_of_progresses} out of ${lock.required_successes} set pins, the pick broke.</p>
-    `,
-    speaker: ChatMessage.getSpeaker({ actor }),
-    user: game.user.id
-  });
-}
+function chat_print_lockpicking_summary(number_of_progresses, pick_success_degrees, lock) {
+  const success_summary = `<p>Success after ${pick_success_degrees.length} rounds.`
+  const failure_summary = `<p>After ${pick_success_degrees.length} rounds and ${number_of_progresses} out of ${lock.required_successes} set pins, the pick broke.</p>`
+  const summary = is_overall_crit_failure(pick_success_degrees) ? failure_summary : success_summary;
+  
+  let scratch_summary = "You left behind damage that indicates the lock was picked on close scrutiny.";
+  if (is_overall_crit_success(pick_success_degrees)) { scratch_summary = "No visible damage was left on the lock."; } 
+  if (is_overall_crit_failure(pick_success_degrees)) { scratch_summary = "You leave behind obvious damage."; }
 
-function chat_print_lockpicking_success(pick_success_degrees, lock) {
+
   ChatMessage.create({
     content: `
       ${get_title_html(lock, pick_success_degrees)}
       ${get_lockpicking_traits_html()}
       <hr />
       ${get_thievery_modifiers_html()}
-      <span style="color: green">Suceeded</span> after ${pick_success_degrees.length} actions <span class="action-glyph">2</span>.
+      ${summary}
+      <p>${scratch_summary}</p>
     `,
     speaker: ChatMessage.getSpeaker({ actor }),
     user: game.user.id
@@ -167,10 +166,6 @@ await Dialog.prompt({
       actual_progress_count += new_successes;
     }
 
-    if (crit_failed) {
-      chat_print_lockpicking_failure(actual_progress_count, pick_success_degrees, lock);
-    } else {
-      chat_print_lockpicking_success(pick_success_degrees, lock);
-    }
+    chat_print_lockpicking_summary(actual_progress_count, pick_success_degrees, lock);
   }
 });
