@@ -16,7 +16,9 @@ const locks = {
 
 
 async function determine_lockpicking_success(bonuses, dc) {
-  const roll_value = (await new Roll('1d20').roll())._total;
+  const roll = await new Roll('1d20').roll();
+  game.dice3d?.showForRoll(roll);
+  roll_value = roll._total;
   const check_value = roll_value + bonuses;
   
   let success_value = 0;
