@@ -1,3 +1,10 @@
+const colors = {
+  critical_success: 'rgb(0, 128, 0)',
+  success: 'rgb(0, 0, 255)',
+  failure: 'rgb(255, 69, 0)',
+  critical_failure: 'rgb(255, 0, 0)',
+}
+
 class Lock {
   constructor(required_successes, dc, quality_name) {
     this.required_successes = required_successes;
@@ -33,8 +40,43 @@ async function determine_lockpicking_success(bonuses, dc) {
   return [success_value, check_value];
 }
 
+function get_title_html(lock, pick_success_degrees) {
+  let result_line = "";
+  if (pick_success_degrees.includes(-1)) {
+    result_text = "Critical Failure";
+    result_color = colors.critical_failure;
+  } else if (pick_success_degrees.every(num => num === 2)) {
+    result_text = "Critical Success";
+    result_color = colors.critical_success;
+  } else {
+    result_text = "Success";
+    result_color = colors.success;
+  }
+  return `
+    <span style="font-size: var(--font-size-12);">
+      <h4 class="action">
+        <strong>Pick a Lock</strong>
+        <span class="subtitle">(<span>Thievery Check</span>)</span>
+      </h4>
+      <div class="target-dc-result">
+        <div class="target-dc">
+          <span>Target: ${lock.quality_name} Lock</span> <span>(DC ${lock.dc})</span>
+        </div>
+        <div>Result: <span style="color:${result_color}">${result_text}</span></div>
+      </div>
+    </span>
+  `
+}
 
-function get_thievery_modifier_tags() {
+function get_lockpicking_traits_html() {
+  return `
+    <div class="tags traits" data-tooltip-class="pf2e">
+      <span class="tag" data-slug="manipulate" data-tooltip="PF2E.TraitDescriptionManipulate">Manipulate</span>
+    </div>
+  `
+}
+
+function get_thievery_modifiers_html() {
   signed = (num) => `${num >= 0 ? "+" : ""}${num}`
 
   let = modifiers = actor.skills.thievery.modifiers;
@@ -46,7 +88,6 @@ function get_thievery_modifier_tags() {
     <div class="tags modifiers">
       ${modifier_tags.join("\n")}
     </div>
-    <hr />
   `;
 
   return modifier_tag_div;
@@ -55,9 +96,11 @@ function get_thievery_modifier_tags() {
 function chat_print_lockpicking_failure(number_of_progresses, pick_success_degrees, lock) {
   ChatMessage.create({
     content: `
-      ${get_thievery_modifier_tags()}
-      <p style="color: red">Critical Failure</p>
-      <p>After ${pick_success_degrees.length} actions and ${number_of_progresses} set pins, the pick broke.</p>
+      ${get_title_html(lock, pick_success_degrees)}
+      ${get_lockpicking_traits_html()}
+      <hr />
+      ${get_thievery_modifiers_html()}
+      <p>After ${pick_success_degrees.length} actions and ${number_of_progresses} out of ${lock.required_successes} set pins, the pick broke.</p>
     `,
     speaker: ChatMessage.getSpeaker({ actor }),
     user: game.user.id
@@ -67,8 +110,12 @@ function chat_print_lockpicking_failure(number_of_progresses, pick_success_degre
 function chat_print_lockpicking_success(pick_success_degrees, lock) {
   ChatMessage.create({
     content: `
-      ${get_thievery_modifier_tags()}
-      <span style="color: green">Suceeded</span> after ${pick_success_degrees.length} actions <span class="action-glyph">2</span>. Results: ${pick_success_degrees}`,
+      ${get_title_html(lock, pick_success_degrees)}
+      ${get_lockpicking_traits_html()}
+      <hr />
+      ${get_thievery_modifiers_html()}
+      <span style="color: green">Suceeded</span> after ${pick_success_degrees.length} actions <span class="action-glyph">2</span>.
+    `,
     speaker: ChatMessage.getSpeaker({ actor }),
     user: game.user.id
   });
