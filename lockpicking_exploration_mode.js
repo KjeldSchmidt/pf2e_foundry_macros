@@ -1,3 +1,11 @@
+/*
+ * Lockpicking in Exploration Mode
+ * 
+ * When picking locks in exploration mode, without any time pressure, it can 
+ * grind the game to a halt to properly play out lockpicking. This macro can
+ * be used to roll efficiently against a lock of a known DC and automatically
+ * informs you of the overall success.
+ */
 class SuccessDegree {
   constructor(name, pin_progress, color) {
     this.name = name;
