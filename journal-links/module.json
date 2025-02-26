@@ -1,0 +1,17 @@
+{
+  "id": "journal-links",
+  "title": "Journal Links",
+  "description": "Expands your ability to create links between Journal Entries.",
+  "authors": [
+    {
+    "name": "Kjeld Schmidt"
+    }
+  ],
+  "styles": ["styles/styles.css"],
+  "scripts": ["scripts/journal-entry-page-links.js"],
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "10",
+    "verified": "12"
+  }
+}

@@ -1,0 +1,7 @@
+.journal-links-toc-copy-button {        
+        float: right;
+        position: relative;
+        right: 20px;
+        top: -1.5rem;
+        cursor: pointer;
+}
