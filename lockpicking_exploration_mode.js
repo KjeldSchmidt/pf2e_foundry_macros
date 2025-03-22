@@ -66,7 +66,7 @@ const number_with_sign = (num) => `${num >= 0 ? "+" : ""}${num}`
 
 async function determine_lockpicking_success(bonuses, dc) {
   const roll = await new Roll('1d20').roll();
-  game.dice3d?.showForRoll(roll);
+  game.dice3d?.showForRoll(roll, game.user, true);
   roll_value = roll._total;
   const check_value = roll_value + bonuses;
   
