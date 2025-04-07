@@ -1,3 +1,5 @@
+import { addBorder } from './token_tools.js';
+
 export async function generateToken(description) {
     const apiKey = game.settings.get('token-forge', 'stabilityApiKey');
     if (!apiKey) {
@@ -44,8 +46,11 @@ export async function generateToken(description) {
             array[i] = binary.charCodeAt(i);
         }
         const blob = new Blob([array], { type: 'image/png' });
+
+        // Add border to the image
+        const tokenImage = await addBorder(blob);
         const filename = `token-${foundry.utils.randomID()}.png`;
-        const file = new File([blob], filename, { type: 'image/png' });
+        const file = new File([tokenImage], filename, { type: 'image/png' });
 
         // Ensure directory exists
         try {
