@@ -1,0 +1,20 @@
+{
+  "id": "token-forge",
+  "title": "Token Forge",
+  "description": "Quickly generate new tokens from AI prompts",
+  "authors": [
+    {
+    "name": "Kjeld Schmidt"
+    }
+  ],
+  "styles": ["styles/styles.css"],
+  "esmodules": ["scripts/token-forge.js", "scripts/token_generation.js"],
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "10",
+    "verified": "12"
+  },
+  "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/token-forge",
+  "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/token-forge/module.json",
+  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/token-forge-1.0.0/token-forge-1.0.0.zip"
+}
