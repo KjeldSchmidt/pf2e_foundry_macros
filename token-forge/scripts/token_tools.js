@@ -1,4 +1,4 @@
-export async function addBorder(imageBlob) {
+export async function addBorder(imageBlob, borderPath = 'modules/token-forge/assets/borders/Smooth_Brass.png') {
     // Create a new image element for the token
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -17,32 +17,34 @@ export async function addBorder(imageBlob) {
         new Promise((resolve, reject) => {
             borderImg.onload = resolve;
             borderImg.onerror = reject;
-            borderImg.src = 'modules/token-forge/assets/borders/Smooth_Brass.png';
+            borderImg.src = borderPath;
         })
     ]);
 
-    // Create a canvas with the image size
+    // Create a canvas with the border image size
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    const size = Math.max(img.width, img.height);
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = borderImg.width;
+    canvas.height = borderImg.height;
+
+    // Scale and center the token image
+    const targetSize = 500;
+    const scale = targetSize / Math.max(img.width, img.height);
+    const scaledWidth = img.width * scale;
+    const scaledHeight = img.height * scale;
+    const x = (canvas.width - scaledWidth) / 2;
+    const y = (canvas.height - scaledHeight) / 2;
 
     // Draw the image circle
     ctx.save();
     ctx.beginPath();
-    ctx.arc(size/2, size/2, size/2 - 5, 0, Math.PI * 2);
+    ctx.arc(canvas.width/2, canvas.height/2, targetSize/2 - 5, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(img, 
-        (size - img.width) / 2, 
-        (size - img.height) / 2, 
-        img.width, 
-        img.height
-    );
+    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
     ctx.restore();
 
-    // Draw the border texture on top, scaled to canvas size
-    ctx.drawImage(borderImg, 0, 0, borderImg.width, borderImg.height, 0, 0, size, size);
+    // Draw the border texture on top, taking up the entire canvas
+    ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height);
 
     // Convert canvas to blob
     return new Promise((resolve) => {
@@ -50,4 +52,19 @@ export async function addBorder(imageBlob) {
             resolve(blob);
         }, 'image/png');
     });
+}
+
+export async function createTokenInScene(imagePath, description) {
+    const tokenData = {
+        name: description,
+        texture: {
+            src: imagePath
+        },
+        width: 1,
+        height: 1,
+        x: canvas.stage.pivot.x,
+        y: canvas.stage.pivot.y
+    };
+
+    await canvas.scene.createEmbeddedDocuments('Token', [tokenData]);
 } 

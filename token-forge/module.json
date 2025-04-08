@@ -8,7 +8,13 @@
     }
   ],
   "styles": ["styles/styles.css"],
-  "esmodules": ["scripts/token-forge.js", "scripts/token_generation.js", "scripts/token_tools.js"],
+  "esmodules": [
+    "scripts/token-forge.js",
+    "scripts/token_generation.js",
+    "scripts/token_tools.js",
+    "scripts/mock_generation.js",
+    "scripts/token-preview.js"
+  ],
   "version": "1.0.0",
   "compatibility": {
     "minimum": "10",

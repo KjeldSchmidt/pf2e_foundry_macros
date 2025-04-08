@@ -1,6 +1,4 @@
-import { addBorder } from './token_tools.js';
-
-export async function generateToken(description) {
+export async function generateImage(description) {
     const apiKey = game.settings.get('token-forge', 'stabilityApiKey');
     if (!apiKey) {
         ui.notifications.error('Please set your Stability AI API key in the module settings');
@@ -8,7 +6,7 @@ export async function generateToken(description) {
     }
 
     try {
-        ui.notifications.info('Generating token...');
+        ui.notifications.info('Generating image...');
         
         const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
             method: 'POST',
@@ -48,43 +46,11 @@ export async function generateToken(description) {
         const blob = new Blob([array], { type: 'image/png' });
 
         // Add border to the image
-        const tokenImage = await addBorder(blob);
-        const filename = `token-${foundry.utils.randomID()}.png`;
-        const file = new File([tokenImage], filename, { type: 'image/png' });
-
-        // Ensure directory exists
-        try {
-            await FilePicker.createDirectory('data', 'token-forge');
-        } catch (error) {
-            // Directory might already exist, which is fine
-            if (!error.message.includes('already exists')) {
-                throw error;
-            }
-        }
-
-        // Upload the image to Foundry
-        const uploadedImage = await FilePicker.upload('data', 'token-forge', file, {});
-        if (!uploadedImage) throw new Error('Failed to upload image');
-
-        // Create a new token
-        const tokenData = {
-            name: description,
-            texture: {
-                src: uploadedImage.path
-            },
-            width: 1,
-            height: 1,
-            x: canvas.stage.pivot.x,
-            y: canvas.stage.pivot.y
-        };
-
-        // Create the token on the current scene
-        await canvas.scene.createEmbeddedDocuments('Token', [tokenData]);
-        
-        ui.notifications.notify('Token created successfully!');
+        return tokenImage;
         
     } catch (error) {
-        console.error('Token Forge | Error generating token:', error);
-        ui.notifications.error('Failed to generate token. Check console for details.');
+        console.error('Token Forge | Error generating image:', error);
+        ui.notifications.error('Failed to generate image. Check console for details.');
+        throw error;
     }
 } 

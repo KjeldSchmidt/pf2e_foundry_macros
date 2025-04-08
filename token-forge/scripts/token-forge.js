@@ -1,4 +1,6 @@
-import { generateToken } from './token_generation.js';
+import { mockGenerateImage } from './mock_generation.js';
+import { generateImage } from './token_generation.js';
+import { TokenPreviewForm } from './token-preview.js';
 
 Hooks.once('init', async function() {
     console.log('Token Forge | Initializing');
@@ -36,7 +38,14 @@ class TokenForgeForm extends FormApplication {
     }
 
     async _updateObject(event, formData) {
-        generateToken(formData.description);
+        try {
+            const tokenImage = await generateImage(formData.description);
+            const previewForm = new TokenPreviewForm(tokenImage, formData.description);
+            previewForm.render(true);
+        } catch (error) {
+            console.error('Token Forge | Error creating token:', error);
+            ui.notifications.error('Failed to create token. Check console for details.');
+        }
     }
 }
 
