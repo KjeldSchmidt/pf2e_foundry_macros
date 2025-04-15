@@ -1,18 +1,10 @@
-import { mockGenerateImage } from './mock_generation.js';
 import { generateImage } from './token_generation.js';
 import { TokenPreviewForm } from './token-preview.js';
+import { registerSettings } from './settings.js';
 
 Hooks.once('init', async function() {
     console.log('Token Forge | Initializing');
-    
-    game.settings.register('token-forge', 'stabilityApiKey', {
-        name: 'Stability AI API Key',
-        hint: 'Your Stability AI API key',
-        scope: 'world',
-        config: true,
-        type: String,
-        default: ''
-    });
+    registerSettings();
 });
 
 Hooks.once('ready', async function() {

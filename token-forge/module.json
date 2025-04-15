@@ -10,10 +10,14 @@
   "styles": ["styles/styles.css"],
   "esmodules": [
     "scripts/token-forge.js",
+    "scripts/settings.js",
     "scripts/token_generation.js",
     "scripts/token_tools.js",
-    "scripts/mock_generation.js",
-    "scripts/token-preview.js"
+    "scripts/token-preview.js",
+    "scripts/providers/BaseProvider.js",
+    "scripts/providers/StabilityProvider.js",
+    "scripts/providers/MockProvider.js",
+    "scripts/providers/ProviderFactory.js"
   ],
   "version": "1.0.0",
   "compatibility": {
