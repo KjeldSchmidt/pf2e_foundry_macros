@@ -1,21 +1,17 @@
 import { ProviderFactory } from './providers/ProviderFactory.js';
 
-export function generatePrompt(description) {
-    return `A token image for a tabletop RPG, ${description}. The image should be circular and suitable for a token.`;
-}
-
 export async function generateImage(description) {
     try {
         ui.notifications.info('Generating image...');
         
         const settings = {
             provider: game.settings.get('token-forge', 'provider'),
-            stabilityApiKey: game.settings.get('token-forge', 'stabilityApiKey')
+            stabilityApiKey: game.settings.get('token-forge', 'stabilityApiKey'),
+            openaiApiKey: game.settings.get('token-forge', 'openaiApiKey')
         };
         
         const provider = ProviderFactory.getProvider(settings);
-        const prompt = generatePrompt(description);
-        const imageBlob = await provider.generateImage(prompt);
+        const imageBlob = await provider.generateImage(description);
         
         return imageBlob;
     } catch (error) {

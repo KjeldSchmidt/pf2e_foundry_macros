@@ -1,7 +1,15 @@
 import { BaseProvider } from './BaseProvider.js';
 
 export class StabilityProvider extends BaseProvider {
-    async generateImage(prompt) {
+    getPrompt(description) {
+        return `
+            A token image for a tabletop RPG. The image should be suitable for a token, by centering on the face of the character.
+            The character looks like this: ${description}
+        `;
+    }
+
+    async generateImage(description) {
+        const prompt = this.getPrompt(description);
         const apiKey = this.settings.stabilityApiKey;
         if (!apiKey) {
             throw new Error('Stability AI API key not configured');

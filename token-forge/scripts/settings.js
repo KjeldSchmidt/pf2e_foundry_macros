@@ -7,6 +7,7 @@ export function registerSettings() {
         type: String,
         choices: {
             'stability': 'Stability AI',
+            'openai': 'OpenAI DALL-E',
             'mock': 'Mock Provider'
         },
         default: 'mock'
@@ -15,6 +16,15 @@ export function registerSettings() {
     game.settings.register('token-forge', 'stabilityApiKey', {
         name: 'Stability AI API Key',
         hint: 'Your Stability AI API key',
+        scope: 'world',
+        config: true,
+        type: String,
+        default: ''
+    });
+
+    game.settings.register('token-forge', 'openaiApiKey', {
+        name: 'OpenAI API Key',
+        hint: 'Your OpenAI API key',
         scope: 'world',
         config: true,
         type: String,
