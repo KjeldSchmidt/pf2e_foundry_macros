@@ -7,13 +7,18 @@ Hooks.on("renderJournalSheet", (app, html, data) => {
 
     pages.each((index, elem) => {
         const journalEntry = jQuery(elem);
+
+        if (journalEntry.hasClass("active")) {
+            return;
+        }
+
         const journalEntryPageId = journalEntry.data("pageId");
         const pageName = journalEntry.find(".page-title").text();
         const uuidLink = `@UUID[JournalEntry.${journalEntryId}.JournalEntryPage.${journalEntryPageId}]{${pageName}}`;
 
         const copyButton = makeCopyButton(uuidLink)
 
-        journalEntry.after(copyButton);
+        journalEntry.find('.page-heading').append(copyButton);
     });
 });
 
@@ -31,6 +36,7 @@ function makeCopyButton(uuidLink) {
     copyButton.on("click", async (event) => {
         event.stopPropagation(); // When the copy button is clicked, the journal should not change to the page of the copied link.
         try {
+            ui.notifications.info('Copied Journal Link!');
             await navigator.clipboard.writeText(uuidLink);
         } catch (err) {
             console.error("Journal Links | Failed to copy jounral link to clipboard:", err);
