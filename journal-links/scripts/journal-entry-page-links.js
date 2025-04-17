@@ -1,17 +1,45 @@
-console.log('SEARCH ANCHOR | JOURNAL-LINKS!');
-
+const observers = new Map();
 
 Hooks.on("renderJournalSheet", (app, html, data) => {
+    observers.forEach(obs => obs.disconnect());
+    observers.clear();
+
     const pages = html.find(".journal-sidebar .pages-list .directory-item");
     const journalEntryId = data.document._id;
 
     pages.each((index, elem) => {
+        const newObserver = new MutationObserver(foundry.utils.debounce((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    const target = mutation.target;
+                    const wasActive = mutation.oldValue?.includes('active');
+                    const isActive = target.classList.contains('active');
+                    
+                    if (isActive && !wasActive) {
+                        addCopyButtons(html, journalEntryId);
+                    }
+                }
+            });
+        }, 20));
+
+        newObserver.observe(elem, { 
+            attributes: true, 
+            attributeFilter: ["class"],
+            attributeOldValue: true 
+        });
+        observers.set(elem, newObserver);
+    });
+});
+
+function addCopyButtons(sheetHtml, journalEntryId) {
+    // Remove existing copy buttons - this is necessary when right-clicking the active page, and will add multiple buttons otherwise.
+    sheetHtml.find('.journal-links-toc-copy-button').remove();
+    
+    const pages = sheetHtml.find(".journal-sidebar .pages-list .directory-item");
+
+    pages.each((index, elem) => {
         const journalEntry = jQuery(elem);
-
-        if (journalEntry.hasClass("active")) {
-            return;
-        }
-
+        
         const journalEntryPageId = journalEntry.data("pageId");
         const pageName = journalEntry.find(".page-title").text();
         const uuidLink = `@UUID[JournalEntry.${journalEntryId}.JournalEntryPage.${journalEntryPageId}]{${pageName}}`;
@@ -19,8 +47,18 @@ Hooks.on("renderJournalSheet", (app, html, data) => {
         const copyButton = makeCopyButton(uuidLink)
 
         journalEntry.find('.page-heading').append(copyButton);
+        // console.log(journalEntry.find('.'));
+
+        journalEntry.find('.headings .heading').each((index, subHeadingHtml) => {
+            const subHeading = jQuery(subHeadingHtml);
+            const subHeadingAnchor = subHeading.data("anchor");
+            const subHeadingName = subHeading.find(".heading-link").text();
+            const subHeadingLink = `@UUID[JournalEntry.${journalEntryId}.JournalEntryPage.${journalEntryPageId}#${subHeadingAnchor}]{${subHeadingName}}`;
+            const subHeadingCopyButton = makeCopyButton(subHeadingLink);
+            subHeading.find('.heading-link').append(subHeadingCopyButton);
+        });
     });
-});
+}
 
 function makeCopyButton(uuidLink) {
     const copyButton = $(`

@@ -2,5 +2,10 @@
     position: relative;
     right: 5px;
     top: -5px;
+    float: right;
     cursor: pointer;
+}
+
+.heading-link .journal-links-toc-copy-button {
+    top: 5px;
 }
