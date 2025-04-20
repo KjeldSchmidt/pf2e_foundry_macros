@@ -77,7 +77,7 @@ async function determine_save_result(bonus, dc) {
     return { roll_value, check_value, success_degree };
 }
 
-function get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType) {
+function get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType, hideNpcDetails) {
     return `
         <div class="damage-summary">
             <h4 class="action">
@@ -92,10 +92,15 @@ function get_damage_summary_html(results, damageType, damageAmount, saveDC, save
                             <span style="color: ${result.successDegree.color}">${result.successDegree.name}</span>
                         </div>
                         <div style="font-size: 0.8em; color: #666;">
-                            Roll: ${result.rollValue} + ${result.checkValue - result.rollValue} = ${result.checkValue}
-                            ${result.resistanceApplied > 0 ? `<br>Resistance: -${result.resistanceApplied}` : ''}
-                            ${result.weaknessApplied > 0 ? `<br>Weakness: +${result.weaknessApplied}` : ''}
-                            ${result.isImmune ? '<br>Immune' : ''}
+                            ${!hideNpcDetails || result.token.actor.type === "character" 
+                                ? 
+                                `Roll: ${result.rollValue} + ${result.checkValue - result.rollValue} = ${result.checkValue}
+                                ${result.resistanceApplied > 0 ? `<br>Resistance: -${result.resistanceApplied}` : ''}
+                                ${result.weaknessApplied > 0 ? `<br>Weakness: +${result.weaknessApplied}` : ''}
+                                ${result.isImmune ? '<br>Immune' : ''}` 
+                                : 
+                                `Roll: 1d20 + ??? = ${result.checkValue}`
+                            }
                             <br>Damage Taken: ${result.damageTaken}
                         </div>
                     </div>
@@ -206,12 +211,24 @@ if (tokensInArea.length > 0) {
                     const damageAmount = parseInt(html.find('[name="damageAmount"]').val());
                     const saveDC = parseInt(html.find('[name="saveDC"]').val());
                     const saveType = html.find('[name="saveType"]').val();
+                    
                     const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
                     
+                    // Create GM message with full details
                     ChatMessage.create({
-                        content: get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType),
-                        user: game.user.id
+                        content: get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType, false),
+                        whisper: [game.user.id],
                     });
+
+                    // Create player message with limited details
+                    for (const user of game.users) {
+                        if (user.isGM) continue;
+                        ChatMessage.create({
+                            content: get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType, true),
+                            user: user.id,
+                            whisper: [user.id]
+                        });
+                    }
                 }
             }
         },
