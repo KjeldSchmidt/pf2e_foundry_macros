@@ -95,6 +95,7 @@ function get_damage_summary_html(results, damageType, damageAmount, saveDC, save
                             Roll: ${result.rollValue} + ${result.checkValue - result.rollValue} = ${result.checkValue}
                             ${result.resistanceApplied > 0 ? `<br>Resistance: -${result.resistanceApplied}` : ''}
                             ${result.weaknessApplied > 0 ? `<br>Weakness: +${result.weaknessApplied}` : ''}
+                            ${result.isImmune ? '<br>Immune' : ''}
                             <br>Damage Taken: ${result.damageTaken}
                         </div>
                     </div>
@@ -111,6 +112,7 @@ async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC,
         let finalDamage = 0;
         let resistanceApplied = 0;
         let weaknessApplied = 0;
+        let isImmune = false;
         
         if (saveResult.success_degree === success_degrees.CritSuccess) {
             finalDamage = 0;
@@ -122,18 +124,22 @@ async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC,
             finalDamage = damageAmount * 2;
         }
 
-            // Check for resistance
         const resistance = token.actor.system.attributes.resistances.find(r => r.type === damageType);
         if (resistance) {
             resistanceApplied = resistance.value;
             finalDamage = Math.max(0, finalDamage - resistanceApplied);
         }
-        
-        // Check for weakness
+
         const weakness = token.actor.system.attributes.weaknesses.find(w => w.type === damageType);
         if (weakness) {
             weaknessApplied = weakness.value;
             finalDamage += weaknessApplied;
+        }
+
+        const immunity = token.actor.system.attributes.immunities.find(i => i.type === damageType);
+        if (immunity) {
+            finalDamage = 0;
+            isImmune = true;
         }
             
         if (finalDamage > 0) {
@@ -150,6 +156,7 @@ async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC,
             damageTaken: finalDamage,
             resistanceApplied,
             weaknessApplied,
+            isImmune,
             rollValue: saveResult.roll_value,
             checkValue: saveResult.check_value
         });
