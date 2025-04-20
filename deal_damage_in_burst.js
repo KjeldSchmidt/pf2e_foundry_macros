@@ -165,8 +165,32 @@ async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC,
     return results;
 }
 
+async function handleDamageRoll(html, tokensInArea) {
+    const damageType = html.find('[name="damageType"]').val();
+    const damageAmount = parseInt(html.find('[name="damageAmount"]').val());
+    const saveDC = parseInt(html.find('[name="saveDC"]').val());
+    const saveType = html.find('[name="saveType"]').val();
+    
+    const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
+    
+    // Create GM message with full details
+    ChatMessage.create({
+        content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, false),
+        whisper: [game.user.id],
+    });
+
+    // Create player message with limited details
+    for (const user of game.users) {
+        if (user.isGM) continue;
+        ChatMessage.create({
+            content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, true),
+            user: user.id,
+            whisper: [user.id]
+        });
+    }
+}
+
 function openDamageRollWindow(tokensInArea) {
-    // Open damage roll window
     if (tokensInArea.length > 0) {
         const damageTypes = CONFIG.PF2E.damageTypes;
         new Dialog({
@@ -203,30 +227,7 @@ function openDamageRollWindow(tokensInArea) {
                 deal: {
                     icon: '<i class="fas fa-check"></i>',
                     label: "Deal Damage",
-                    callback: async (html) => {
-                        const damageType = html.find('[name="damageType"]').val();
-                        const damageAmount = parseInt(html.find('[name="damageAmount"]').val());
-                        const saveDC = parseInt(html.find('[name="saveDC"]').val());
-                        const saveType = html.find('[name="saveType"]').val();
-                        
-                        const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
-                        
-                        // Create GM message with full details
-                        ChatMessage.create({
-                            content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, false),
-                            whisper: [game.user.id],
-                        });
-
-                        // Create player message with limited details
-                        for (const user of game.users) {
-                            if (user.isGM) continue;
-                            ChatMessage.create({
-                                content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, true),
-                                user: user.id,
-                                whisper: [user.id]
-                            });
-                        }
-                    }
+                    callback: (html) => handleDamageRoll(html, tokensInArea)
                 }
             },
             default: "deal"
