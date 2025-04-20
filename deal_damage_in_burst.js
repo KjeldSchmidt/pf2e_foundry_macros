@@ -236,6 +236,12 @@ function openDamageRollWindow(tokensInArea) {
                         </select>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="includePlayers" checked>
+                        Include Players?
+                    </label>
+                </div>
             `,
             buttons: {
                 cancel: {
@@ -245,7 +251,15 @@ function openDamageRollWindow(tokensInArea) {
                 deal: {
                     icon: '<i class="fas fa-check"></i>',
                     label: "Deal Damage",
-                    callback: (html) => handleDamageRoll(html, tokensInArea)
+                    callback: (html) => {
+                        const includePlayers = html.find('[name="includePlayers"]').is(':checked');
+                        const filteredTokens = includePlayers ? tokensInArea : tokensInArea.filter(token => token.actor.type !== "character");
+                        if (filteredTokens.length === 0) {
+                            ui.notifications.warn("No valid tokens found!");
+                            return;
+                        }
+                        handleDamageRoll(html, filteredTokens);
+                    }
                 }
             },
             default: "deal"
