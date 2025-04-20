@@ -1,45 +1,41 @@
-// Get the currently active measurement template
-const template = canvas.templates.controlled[0] || canvas.templates.placeables[canvas.templates.placeables.length - 1];
-if (!template) {
-    ui.notifications.warn("No measurement template selected!");
-    return;
+function getTokensInTemplateArea() {
+    // Get the currently active measurement template
+    const template = canvas.templates.controlled[0] || canvas.templates.placeables[canvas.templates.placeables.length - 1];
+    if (!template) {
+        ui.notifications.warn("No measurement template selected!");
+        return;
+    }
+
+    // Get all tokens in the scene
+    const tokens = canvas.tokens.placeables;
+
+    // Get the template's grid positions
+    const gridPositions = template._getGridHighlightPositions();
+    if (!gridPositions.length) {
+        ui.notifications.warn("Template has no grid positions!");
+        return;
+    }
+
+    const gridSize = canvas.grid.size;
+
+    // Filter tokens that are within the template's area
+    const tokensInArea = tokens.filter(token => {
+        if (!token.actor) return false; // We don't care about tokens that don't have an actor
+        if (!token.actor.system?.attributes?.hp) return false; // Nor those that don't have hit points
+        const tokenCenter = token.center;
+        // Round token position to grid
+        const gridX = Math.floor(tokenCenter.x / gridSize) * gridSize;
+        const gridY = Math.floor(tokenCenter.y / gridSize) * gridSize;
+        const isInArea = gridPositions.some(pos => 
+            pos.x === gridX && 
+            pos.y === gridY && 
+            !pos.collision // Only include if not blocked by walls
+        );
+        return isInArea;
+    });
+
+    return tokensInArea;
 }
-
-// Get all tokens in the scene
-const tokens = canvas.tokens.placeables;
-
-// Get the template's grid positions
-const gridPositions = template._getGridHighlightPositions();
-if (!gridPositions.length) {
-    ui.notifications.warn("Template has no grid positions!");
-    return;
-}
-console.log(gridPositions);
-
-// Get grid size
-const gridSize = canvas.grid.size;
-
-// Filter tokens that are within the template's area
-const tokensInArea = tokens.filter(token => {
-    if (!token.actor) return false;
-    if (!token.actor.system?.attributes?.hp) return false;
-    const tokenCenter = token.center;
-    // Snap token position to grid
-    const snappedX = Math.floor(tokenCenter.x / gridSize) * gridSize;
-    const snappedY = Math.floor(tokenCenter.y / gridSize) * gridSize;
-    const isInArea = gridPositions.some(pos => 
-        pos.x === snappedX && 
-        pos.y === snappedY && 
-        !pos.collision // Only include if not blocked by walls
-    );
-    return isInArea;
-});
-
-// Select the tokens
-canvas.tokens.selectObjects(tokensInArea);
-
-// Notify the user
-ui.notifications.info(`Selected ${tokensInArea.length} tokens within the template.`);
 
 class SuccessDegree {
     constructor(name, color) {
@@ -48,36 +44,36 @@ class SuccessDegree {
     }
 }
 
-const success_degrees = {
-    CritSuccess: new SuccessDegree("Critical Success", 'rgb(0, 128, 0)'),
-    Success: new SuccessDegree("Success", 'rgb(0, 0, 255)'),
-    Failure: new SuccessDegree("Failure", 'rgb(255, 69, 0)'),
-    CritFailure: new SuccessDegree("Critical Failure", 'rgb(255, 0, 0)'),
+const successDegrees = {
+    critSuccess: new SuccessDegree("Critical Success", 'rgb(0, 128, 0)'),
+    success: new SuccessDegree("Success", 'rgb(0, 0, 255)'),
+    failure: new SuccessDegree("Failure", 'rgb(255, 69, 0)'),
+    critFailure: new SuccessDegree("Critical Failure", 'rgb(255, 0, 0)'),
 }
 
-async function determine_save_result(bonus, dc) {
+async function determineSaveResult(bonus, dc) {
     const roll = await new Roll('1d20').roll();
     game.dice3d?.showForRoll(roll, game.user, true);
-    const roll_value = roll._total;
-    const check_value = roll_value + bonus;
+    const rollValue = roll._total;
+    const checkValue = rollValue + bonus;
     
-    let success_indicator = 0;
-    if (check_value >= dc + 10) { success_indicator = 2; }
-    else if (check_value >= dc) { success_indicator = 1; }
-    else if (check_value >= dc - 9) { success_indicator = 0; }
-    else if (check_value <= dc - 10) { success_indicator = -1; }
+    let successIndicator = 0;
+    if (checkValue >= dc + 10) { successIndicator = 2; }
+    else if (checkValue >= dc) { successIndicator = 1; }
+    else if (checkValue >= dc - 9) { successIndicator = 0; }
+    else if (checkValue <= dc - 10) { successIndicator = -1; }
 
-    if (roll_value === 20) { success_indicator = Math.min(2, success_indicator + 1) }
-    if (roll_value === 1) { success_indicator = Math.max(-1, success_indicator - 1) }
+    if (rollValue === 20) { successIndicator = Math.min(2, successIndicator + 1) }
+    if (rollValue === 1) { successIndicator = Math.max(-1, successIndicator - 1) }
 
-    const success_degree = success_indicator === 2 ? success_degrees.CritSuccess :
-                          success_indicator === 1 ? success_degrees.Success :
-                          success_indicator === 0 ? success_degrees.Failure :
-                          success_degrees.CritFailure;
-    return { roll_value, check_value, success_degree };
+    const successDegree = successIndicator === 2 ? successDegrees.critSuccess :
+                          successIndicator === 1 ? successDegrees.success :
+                          successIndicator === 0 ? successDegrees.failure :
+                          successDegrees.critFailure;
+    return { rollValue, checkValue, successDegree };
 }
 
-function get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType, hideNpcDetails) {
+function getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, hideNpcDetails) {
     return `
         <div class="damage-summary">
             <h4 class="action">
@@ -113,19 +109,19 @@ function get_damage_summary_html(results, damageType, damageAmount, saveDC, save
 async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC, saveType) {
     const results = [];
     for (const token of tokens) {
-        const saveResult = await determine_save_result(token.actor.system.saves[saveType].value, saveDC);
+        const saveResult = await determineSaveResult(token.actor.system.saves[saveType].value, saveDC);
         let finalDamage = 0;
         let resistanceApplied = 0;
         let weaknessApplied = 0;
         let isImmune = false;
         
-        if (saveResult.success_degree === success_degrees.CritSuccess) {
+        if (saveResult.successDegree === successDegrees.critSuccess) {
             finalDamage = 0;
-        } else if (saveResult.success_degree === success_degrees.Success) {
+        } else if (saveResult.successDegree === successDegrees.success) {
             finalDamage = Math.floor(damageAmount / 2);
-        } else if (saveResult.success_degree === success_degrees.Failure) {
+        } else if (saveResult.successDegree === successDegrees.failure) {
             finalDamage = damageAmount;
-        } else if (saveResult.success_degree === success_degrees.CritFailure) {
+        } else if (saveResult.successDegree === successDegrees.critFailure) {
             finalDamage = damageAmount * 2;
         }
 
@@ -157,81 +153,90 @@ async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC,
 
         results.push({
             token,
-            successDegree: saveResult.success_degree,
+            successDegree: saveResult.successDegree,
             damageTaken: finalDamage,
             resistanceApplied,
             weaknessApplied,
             isImmune,
-            rollValue: saveResult.roll_value,
-            checkValue: saveResult.check_value
+            rollValue: saveResult.rollValue,
+            checkValue: saveResult.checkValue
         });
     }
     return results;
 }
 
-// Open damage roll window
-if (tokensInArea.length > 0) {
-    const damageTypes = CONFIG.PF2E.damageTypes;
-    new Dialog({
-        title: "Deal Damage",
-        content: `
-            <div class="form-group">
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <label style="width: 60px;">Damage</label>
-                    <input type="number" name="damageAmount" min="1" value="1" style="flex: 1;">
-                    <select name="damageType" style="flex: 1;">
-                        ${Object.entries(damageTypes).map(([key, _]) => 
-                            `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
-                        ).join('')}
-                    </select>
+function openDamageRollWindow(tokensInArea) {
+    // Open damage roll window
+    if (tokensInArea.length > 0) {
+        const damageTypes = CONFIG.PF2E.damageTypes;
+        new Dialog({
+            title: "Deal Damage",
+            content: `
+                <div class="form-group">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label style="width: 60px;">Damage</label>
+                        <input type="number" name="damageAmount" min="1" value="1" style="flex: 1;">
+                        <select name="damageType" style="flex: 1;">
+                            ${Object.entries(damageTypes).map(([key, _]) => 
+                                `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <label style="width: 60px;">DC</label>
-                    <input type="number" name="saveDC" min="1" value="1" style="flex: 1;">
-                    <select name="saveType" style="flex: 1;">
-                        ${Object.entries(CONFIG.PF2E.saves).map(([key, _]) => 
-                            `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
-                        ).join('')}
-                    </select>
+                <div class="form-group">
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label style="width: 60px;">DC</label>
+                        <input type="number" name="saveDC" min="1" value="1" style="flex: 1;">
+                        <select name="saveType" style="flex: 1;">
+                            ${Object.entries(CONFIG.PF2E.saves).map(([key, _]) => 
+                                `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
                 </div>
-            </div>
-        `,
-        buttons: {
-            cancel: {
-                icon: '<i class="fas fa-times"></i>',
-                label: "Cancel"
-            },
-            deal: {
-                icon: '<i class="fas fa-check"></i>',
-                label: "Deal Damage",
-                callback: async (html) => {
-                    const damageType = html.find('[name="damageType"]').val();
-                    const damageAmount = parseInt(html.find('[name="damageAmount"]').val());
-                    const saveDC = parseInt(html.find('[name="saveDC"]').val());
-                    const saveType = html.find('[name="saveType"]').val();
-                    
-                    const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
-                    
-                    // Create GM message with full details
-                    ChatMessage.create({
-                        content: get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType, false),
-                        whisper: [game.user.id],
-                    });
-
-                    // Create player message with limited details
-                    for (const user of game.users) {
-                        if (user.isGM) continue;
+            `,
+            buttons: {
+                cancel: {
+                    icon: '<i class="fas fa-times"></i>',
+                    label: "Cancel"
+                },
+                deal: {
+                    icon: '<i class="fas fa-check"></i>',
+                    label: "Deal Damage",
+                    callback: async (html) => {
+                        const damageType = html.find('[name="damageType"]').val();
+                        const damageAmount = parseInt(html.find('[name="damageAmount"]').val());
+                        const saveDC = parseInt(html.find('[name="saveDC"]').val());
+                        const saveType = html.find('[name="saveType"]').val();
+                        
+                        const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
+                        
+                        // Create GM message with full details
                         ChatMessage.create({
-                            content: get_damage_summary_html(results, damageType, damageAmount, saveDC, saveType, true),
-                            user: user.id,
-                            whisper: [user.id]
+                            content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, false),
+                            whisper: [game.user.id],
                         });
+
+                        // Create player message with limited details
+                        for (const user of game.users) {
+                            if (user.isGM) continue;
+                            ChatMessage.create({
+                                content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, true),
+                                user: user.id,
+                                whisper: [user.id]
+                            });
+                        }
                     }
                 }
-            }
-        },
-        default: "deal"
-    }).render(true);
+            },
+            default: "deal"
+        }).render(true);
+    }
+}
+
+const tokensInArea = getTokensInTemplateArea();
+if (tokensInArea.length > 0) {
+    openDamageRollWindow(tokensInArea);
+} else {
+    ui.notifications.warn("No tokens found in the template area!");
 }
