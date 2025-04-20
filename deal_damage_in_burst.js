@@ -73,7 +73,8 @@ async function determineSaveResult(bonus, dc) {
     return { rollValue, checkValue, successDegree };
 }
 
-function getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, hideNpcDetails) {
+function getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, hideGameMasterInfo) {
+    const critFailureCount = results.filter(r => r.successDegree === successDegrees.critFailure).length;
     return `
         <div class="damage-summary">
             <h4 class="action">
@@ -88,7 +89,7 @@ function getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveTyp
                             <span style="color: ${result.successDegree.color}">${result.successDegree.name}</span>
                         </div>
                         <div style="font-size: 0.8em; color: #666;">
-                            ${!hideNpcDetails || result.token.actor.type === "character" 
+                            ${!hideGameMasterInfo || result.token.actor.type === "character" 
                                 ? 
                                 `Roll: ${result.rollValue} + ${result.checkValue - result.rollValue} = ${result.checkValue}
                                 ${result.resistanceApplied > 0 ? `<br>Resistance: -${result.resistanceApplied}` : ''}
@@ -102,6 +103,13 @@ function getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveTyp
                     </div>
                 `).join('')}
             </div>
+            ${!hideGameMasterInfo && critFailureCount > 0 ? `
+                <div style="margin-top: 0.5rem;">
+                    <button class="target-crit-failures" data-tokens='${JSON.stringify(results.filter(r => r.successDegree === successDegrees.critFailure).map(r => r.token.id))}'>
+                        Target ${critFailureCount} Critical Failure${critFailureCount > 1 ? 's' : ''}
+                    </button>
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -173,6 +181,16 @@ async function handleDamageRoll(html, tokensInArea) {
     
     const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
     
+    // Add handler to target tokens with crit failures
+    Hooks.once('renderChatMessage', (_, html) => {
+        html.find('.target-crit-failures').click(event => {
+            const tokenIds = JSON.parse(event.currentTarget.dataset.tokens);
+            const tokens = tokenIds.map(id => canvas.tokens.get(id));
+            tokens[0].setTarget(true, {user: game.user, releaseOthers: true});
+            tokens.forEach(token => token.setTarget(true, {user: game.user, releaseOthers: false, groupSelection: true}));
+        });
+    });
+
     // Create GM message with full details
     ChatMessage.create({
         content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, false),
