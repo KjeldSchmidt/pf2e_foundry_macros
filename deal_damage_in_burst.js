@@ -237,10 +237,16 @@ function openDamageRollWindow(tokensInArea) {
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" name="includePlayers" checked>
-                        Include Players?
-                    </label>
+                    <div style="display: flex; justify-content: space-around; align-items: center; margin: 0.5rem 0;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" name="includePlayers" checked>
+                            Include Players?
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" name="includeNPCs" checked>
+                            Include NPCs?
+                        </label>
+                    </div>
                 </div>
             `,
             buttons: {
@@ -253,7 +259,11 @@ function openDamageRollWindow(tokensInArea) {
                     label: "Deal Damage",
                     callback: (html) => {
                         const includePlayers = html.find('[name="includePlayers"]').is(':checked');
-                        const filteredTokens = includePlayers ? tokensInArea : tokensInArea.filter(token => token.actor.type !== "character");
+                        const includeNPCs = html.find('[name="includeNPCs"]').is(':checked');
+                        const filteredTokens = tokensInArea.filter(token => 
+                            (includePlayers && token.actor.type === "character") || 
+                            (includeNPCs && token.actor.type !== "character")
+                        );
                         if (filteredTokens.length === 0) {
                             ui.notifications.warn("No valid tokens found!");
                             return;
