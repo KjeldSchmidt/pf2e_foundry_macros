@@ -1,6 +1,6 @@
 {
-  "id": "custom-compendium-banners",
-  "title": "Custom Compendium Banners",
+  "id": "individual-compendium-banners",
+  "title": "Individual Compendium Banners",
   "description": "Adds the ability to change default compendium banner images for each compendium or remove banners altogether. Adapted for Foundry 13 and expanded from https://github.com/phenomen/fvtt-custom-compendium-banners",
   "authors": [
     {
