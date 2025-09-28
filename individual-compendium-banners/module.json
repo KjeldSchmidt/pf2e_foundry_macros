@@ -15,6 +15,6 @@
   },
   "esmodules": ["index.js"],
   "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/individual-compendium-banners",
-  "manifest": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/blob/main/individual-compendium-banners/module.json",
+  "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/individual-compendium-banners/module.json",
   "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/individual-compendium-banners-1.0/individual-compendium-banners-1.0.zip"
 }
