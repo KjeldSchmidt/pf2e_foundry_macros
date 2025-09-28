@@ -7,7 +7,6 @@
     "name": "Kjeld Schmidt"
     }
   ],
-  "styles": ["styles/styles.css"],
   "esmodules": [
     "scripts/token-forge.js",
     "scripts/settings.js",
