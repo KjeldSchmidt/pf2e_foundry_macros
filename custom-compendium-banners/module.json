@@ -1,0 +1,20 @@
+{
+  "id": "custom-compendium-banners",
+  "title": "Custom Compendium Banners",
+  "description": "Adds the ability to change default compendium banner images for each compendium or remove banners altogether. Adapted for Foundry 13 and expanded from https://github.com/phenomen/fvtt-custom-compendium-banners",
+  "authors": [
+    {
+      "name": "Kjeld Schmidt",
+      "discord": "KjeldSchmidt"
+    }
+  ],
+  "version": "1.4",
+  "compatibility": {
+    "minimum": "11",
+    "verified": "13"
+  },
+  "esmodules": ["index.js"],
+  "url": "###https://github.com/phenomen/fvtt-custom-compendium-banners",
+  "manifest": "###https://raw.githubusercontent.com/phenomen/fvtt-custom-compendium-banners/main/module.json",
+  "download": "###https://github.com/phenomen/fvtt-custom-compendium-banners/archive/refs/heads/main.zip"
+}
