@@ -12,18 +12,31 @@ function registerSetting(key, options) {
   });
 }
 
-function getCompendiumBanner(compendiumId) {
+function loadCompendiumBanner(compendiumId) {
   const banners = game.settings.get(MODULE_ID, "compendiumBanners") || {};
   return banners[compendiumId] || "";
 }
 
-async function setCompendiumBanner(compendiumId, imagePath) {
+async function storeCompendiumBanner(compendiumId, imagePath) {
   const banners = game.settings.get(MODULE_ID, "compendiumBanners") || {};
   banners[compendiumId] = imagePath;
   await game.settings.set(MODULE_ID, "compendiumBanners", banners);
 }
 
-function applyChanges() {
+function setBannerOnCompendiumWindow(app, html) {
+  const compendiumId = app.collection?.metadata?.id;
+  if (compendiumId) {
+    const customBanner = loadCompendiumBanner(compendiumId);
+    if (customBanner) {
+      const bannerElement = $(html).find(".header-banner img");
+      if (bannerElement.length > 0) {
+        bannerElement.attr("src", customBanner);
+      }
+    }
+  }
+}
+
+function setBannerOnSidebar() {
   const compendiumItems = document.querySelectorAll(
     ".compendium-sidebar .directory-item.compendium"
   );
@@ -31,19 +44,17 @@ function applyChanges() {
   const bannerHeight = game.settings.get(MODULE_ID, "BannerHeight");
 
   compendiumItems.forEach((item) => {
-    item.style.height = `${bannerHeight}px`;
-    
     const compendiumId = item.dataset.pack;
-    
+
+    item.style.height = `${bannerHeight}px`;
+
     if (compendiumId) {
-      const customBanner = getCompendiumBanner(compendiumId);
+      const customBanner = loadCompendiumBanner(compendiumId);
+      if (!customBanner) return;
       
       const bannerElement = item.querySelector(".compendium-banner");
-      if (bannerElement) {
-        if (customBanner) {
-          bannerElement.src = customBanner;
-        }
-      }
+      if (!bannerElement) return;
+      bannerElement.src = customBanner;
     }
   });
 }
@@ -84,22 +95,20 @@ Hooks.on("getHeaderControlsCompendium", (app, controls) => {
         return;
       }
       
-      const currentBanner = getCompendiumBanner(compendiumId);
+      const currentBanner = loadCompendiumBanner(compendiumId);
       
       new foundry.applications.apps.FilePicker.implementation({
         type: "image",
         current: currentBanner,
         callback: async (imagePath) => {
           if (imagePath) {
-            await setCompendiumBanner(compendiumId, imagePath);
-            applyChanges();
+            await storeCompendiumBanner(compendiumId, imagePath);
+            setBannerOnSidebar();
             
             const collection = game.packs.get(compendiumId);
             if (collection?.apps && collection.apps.length > 0) {
               collection.apps[0].render(false);
             }
-            
-            ui.notifications.info(`Updated banner for compendium: ${compendiumId}`);
           }
         }
       }).render(true);
@@ -108,23 +117,17 @@ Hooks.on("getHeaderControlsCompendium", (app, controls) => {
 });
 
 Hooks.on("renderSidebarTab", (tab) => {
-  if (tab instanceof foundry.applications.sidebar.tabs.CompendiumDirectory) applyChanges();
+  if (tab instanceof foundry.applications.sidebar.tabs.CompendiumDirectory) setBannerOnSidebar();
 });
 
 Hooks.on("changeSidebarTab", (tab) => {
-  if (tab instanceof foundry.applications.sidebar.tabs.CompendiumDirectory) applyChanges();
+  if (tab instanceof foundry.applications.sidebar.tabs.CompendiumDirectory) setBannerOnSidebar();
+});
+
+Hooks.on("renderSidebar", (sidebar, html) => {
+  setBannerOnSidebar();
 });
 
 Hooks.on("renderCompendium", (app, html, data) => {
-  const compendiumId = app.collection?.metadata?.id;
-  
-  if (compendiumId) {
-    const customBanner = getCompendiumBanner(compendiumId);
-    if (customBanner) {
-      const bannerElement = $(html).find(".header-banner img");
-      if (bannerElement.length > 0) {
-        bannerElement.attr("src", customBanner);
-      }
-    }
-  }
+  setBannerOnCompendiumWindow(app, html);
 });
