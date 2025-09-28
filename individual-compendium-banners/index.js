@@ -1,4 +1,4 @@
-const MODULE_ID = "custom-compendium-banners";
+const MODULE_ID = "individual-compendium-banners";
 
 const debouncedRender = foundry.utils.debounce(() => ui.sidebar?.render(false), 50);
 
