@@ -199,8 +199,11 @@ async function handleDamageRoll(html, tokensInArea) {
     const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
     
     // Add handler to target tokens with crit failures
-    Hooks.once('renderChatMessage', (_, html) => {
-        html.find('.target-failures, .target-crit-failures').click(handleTargetButtonClick);
+    Hooks.once('renderChatMessage', (message, html) => {
+        const element = html.element?.[0] ?? html[0] ?? html;
+        element.querySelectorAll('.target-failures, .target-crit-failures').forEach(btn => {
+            btn.addEventListener('click', handleTargetButtonClick);
+        });
     });
 
     // Create GM message with full details
