@@ -1,0 +1,28 @@
+{
+  "id": "pf2e-browse-by-pack",
+  "title": "PF2e Browse by Pack",
+  "description": "Adds a filter to the PF2e Compendium Browser to filter by source pack.",
+  "authors": [
+    {
+      "name": "Kjeld Schmidt"
+    }
+  ],
+  "styles": ["styles/styles.css"],
+  "esmodules": ["scripts/browse-by-pack.js"],
+  "version": "0.1",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "pf2e",
+        "type": "system"
+      }
+    ]
+  }
+}
+
+
+

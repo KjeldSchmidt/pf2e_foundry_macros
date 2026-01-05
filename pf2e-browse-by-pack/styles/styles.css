@@ -1,0 +1,29 @@
+/* PF2e Browse by Pack - Styles */
+
+.browse-by-pack-filter {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-light, #999);
+  border-radius: 4px;
+}
+
+.browse-by-pack-filter legend {
+  font-weight: bold;
+  padding: 0 0.25rem;
+}
+
+.browse-by-pack-filter .pack-filter-select {
+  width: 100%;
+  padding: 0.25rem;
+  border-radius: 3px;
+  border: 1px solid var(--color-border-light, #999);
+  background: var(--color-bg, #fff);
+}
+
+/* Hide filtered items */
+.browse-by-pack-hidden {
+  display: none !important;
+}
+
+
+
