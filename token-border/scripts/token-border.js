@@ -176,33 +176,23 @@ class TokenBorderForm extends HandlebarsApplicationMixin(ApplicationV2) {
 
 let tokenBorderForm = null;
 
-// v13 API: controls is a Record<string, SceneControl>, not an array
 Hooks.on('getSceneControlButtons', (controls) => {
     if (!game.user.isGM) return;
+    if (!controls.tokens?.tools) return;
 
-    controls['token-border'] = {
+    controls.tokens.tools['token-border'] = {
         name: 'token-border',
-        title: 'Token Border',
+        title: 'Add Token Border',
         icon: 'fas fa-circle-notch',
         visible: true,
-        layer: 'tokens',
-        activeTool: 'open-border-form',
-        tools: {
-            'open-border-form': {
-                name: 'open-border-form',
-                title: 'Add Border to Image',
-                icon: 'fas fa-circle-notch',
-                visible: true,
-                button: true,
-                onChange: (event, active) => {
-                    if (tokenBorderForm?.rendered) {
-                        tokenBorderForm.close();
-                    } else {
-                        tokenBorderForm = new TokenBorderForm();
-                        tokenBorderForm.render(true);
-                    }
-                }
+        button: true,
+        onChange: (event, active) => {
+            if (tokenBorderForm?.rendered) {
+                tokenBorderForm.bringToFront?.();
+                return;
             }
+            tokenBorderForm = new TokenBorderForm();
+            tokenBorderForm.render(true);
         }
     };
 });
