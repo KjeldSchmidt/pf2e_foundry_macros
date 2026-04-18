@@ -67,7 +67,7 @@ const number_with_sign = (num) => `${num >= 0 ? "+" : ""}${num}`
 async function determine_lockpicking_success(bonuses, dc) {
   const roll = await new Roll('1d20').roll();
   game.dice3d?.showForRoll(roll, game.user, true);
-  roll_value = roll._total;
+  let roll_value = roll._total;
   const check_value = roll_value + bonuses;
   
   let success_indicator = 0;
@@ -111,7 +111,7 @@ function get_lockpicking_traits_html() {
 }
 
 function get_thievery_modifiers_html(ad_hoc_skill_bonus) {
-  let = modifiers = actor.skills.thievery.modifiers;
+  let modifiers = actor.skills.thievery.modifiers;
   modifiers = modifiers.filter(item => item.enabled);
   let modifier_tags = modifiers.map((mod) => `<span class="tag tag_transparent" data-slug="${mod.slug}}">${mod.label} ${number_with_sign(mod.modifier)}</span>`);
 
@@ -129,7 +129,7 @@ function get_thievery_modifiers_html(ad_hoc_skill_bonus) {
 }
 
 function get_individual_step_html(pick_attempts, lock) {
-  attempt_descriptions = pick_attempts.map(attempt => {
+  const attempt_descriptions = pick_attempts.map(attempt => {
     const diff_to_dc = number_with_sign(attempt.check_value - lock.dc);
     const success_degree = attempt.success_degree;
     return `
@@ -175,46 +175,48 @@ function chat_print_lockpicking_summary(pick_attempts, lock, ad_hoc_skill_bonus)
 
 
 
-await Dialog.prompt({
-  title: 'Lockpick',
+await foundry.applications.api.DialogV2.prompt({
+  window: { title: 'Lockpick' },
   content: `
-    <div class="form-group" style="padding: 0.5rem 0;">
+    <div class="form-group">
       <label for="lockSelect">Lock Quality</label>
-      <select name="lockSelect" style="float: right">
+      <select name="lockSelect">
         <option value="poor">Poor (2, DC15)</option>
         <option value="simple">Simple (3, DC20)</option>
         <option value="average">Average (4, DC25)</option>
         <option value="good">Good (5, DC30)</option>
         <option value="superior">Superior (6, DC40)</option>
       </select>
-      <br />
-      <div style="margin: 1rem 0;">
-        <label for="bonuses" style="float: left">Other Bonuses</label>
-        <input type='number' name='bonuses' value=0 style="width: 60%; float: right" />
-      </div>
+    </div>
+    <div class="form-group">
+      <label for="bonuses">Other Bonuses</label>
+      <input type="number" name="bonuses" value="0" />
     </div>
   `,
+  ok: {
+    label: 'Pick',
+    callback: async (event, button, dialog) => {
+      const form = button.form;
+      const lock_name = form.elements.lockSelect.value;
+      const lock = locks[lock_name];
+      const other_bonuses = parseInt(form.elements.bonuses.value);
 
-  callback: async(html) => {
-    const lock_name = html.find('[name="lockSelect"]').val();
-    const lock = locks[lock_name];
-    const other_bonuses = parseInt(html.find('[name="bonuses"]').val());
+      let correctly_set_pins = 0;
+      const pick_attempts = [];
+      const total_bonus = parseInt(actor.skills.thievery.check.mod) + other_bonuses;
 
-    let correctly_set_pins = 0;
-    const pick_attempts = [];
-    const total_bonus = parseInt(actor.skills.thievery.check.mod) + other_bonuses;
+      while (correctly_set_pins < lock.required_successes) {
+        const new_pick_attempt = await determine_lockpicking_success(total_bonus, lock.dc);
+        pick_attempts.push(new_pick_attempt);
 
-    while (correctly_set_pins < lock.required_successes) {
-      const new_pick_attempt = await determine_lockpicking_success(total_bonus, lock.dc);
-      pick_attempts.push(new_pick_attempt);
-      
-      if (new_pick_attempt.success_degree === success_degrees.CritFailure) {
-        break
+        if (new_pick_attempt.success_degree === success_degrees.CritFailure) {
+          break
+        }
+
+        correctly_set_pins += new_pick_attempt.success_degree.pin_progress;
       }
 
-      correctly_set_pins += new_pick_attempt.success_degree.pin_progress;
+      chat_print_lockpicking_summary(pick_attempts, lock, other_bonuses);
     }
-
-    chat_print_lockpicking_summary(pick_attempts, lock, other_bonuses);
   }
 });
