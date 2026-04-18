@@ -14,7 +14,7 @@
     "minimum": "14",
     "verified": "14"
   },
-  "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/journal-links",
-  "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/journal-links/module.json",
-  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/journal-links-1.2.0/journal-links-1.2.0.zip"
+  "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/journal-quick-links",
+  "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/journal-quick-links/module.json",
+  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/journal-quick-links-1.2.0/journal-quick-links-1.2.0.zip"
 }
