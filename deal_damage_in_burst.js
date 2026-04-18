@@ -29,25 +29,25 @@ const successDegrees = {
     critFailure: new SuccessDegree("Critical Failure", 'rgb(255, 0, 0)'),
 }
 
-async function determineSaveResult(bonus, dc) {
-    const roll = await new Roll('1d20').roll();
-    game.dice3d?.showForRoll(roll, game.user, true);
-    const rollValue = roll._total;
-    const checkValue = rollValue + bonus;
-    
-    let successIndicator = 0;
-    if (checkValue >= dc + 10) { successIndicator = 2; }
-    else if (checkValue >= dc) { successIndicator = 1; }
-    else if (checkValue >= dc - 9) { successIndicator = 0; }
-    else if (checkValue <= dc - 10) { successIndicator = -1; }
+async function determineSaveResult(actor, saveType, dc) {
+    const roll = await actor.saves[saveType].roll({
+        dc: { value: dc },
+        skipDialog: true,
+        createMessage: false,
+        extraRollOptions: ["damaging-effect"]
+    });
 
-    if (rollValue === 20) { successIndicator = Math.min(2, successIndicator + 1) }
-    if (rollValue === 1) { successIndicator = Math.max(-1, successIndicator - 1) }
+    const degreeIndex = roll?.degreeOfSuccess ?? roll?.options?.degreeOfSuccess ?? 0;
+    const successDegree = [
+        successDegrees.critFailure,
+        successDegrees.failure,
+        successDegrees.success,
+        successDegrees.critSuccess
+    ][degreeIndex];
 
-    const successDegree = successIndicator === 2 ? successDegrees.critSuccess :
-                          successIndicator === 1 ? successDegrees.success :
-                          successIndicator === 0 ? successDegrees.failure :
-                          successDegrees.critFailure;
+    const d20 = roll?.dice?.find(d => d.faces === 20);
+    const rollValue = d20?.total ?? d20?.results?.[0]?.result ?? null;
+    const checkValue = roll?.total ?? null;
     return { rollValue, checkValue, successDegree };
 }
 
@@ -105,7 +105,7 @@ function getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveTyp
 async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC, saveType) {
     const results = [];
     for (const token of tokens) {
-        const saveResult = await determineSaveResult(token.actor.system.saves[saveType].value, saveDC);
+        const saveResult = await determineSaveResult(token.actor, saveType, saveDC);
         let finalDamage = 0;
         let resistanceApplied = 0;
         let weaknessApplied = 0;
@@ -163,25 +163,32 @@ async function rollSaveAndApplyDamages(tokens, damageType, damageAmount, saveDC,
 
 function handleTargetButtonClick(event) {
     const tokenIds = JSON.parse(event.currentTarget.dataset.tokens);
-    const tokens = tokenIds.map(id => canvas.tokens.get(id));
+    const tokens = tokenIds.map(id => canvas.tokens.get(id)).filter(t => t);
+    if (!tokens.length) return;
     tokens[0].setTarget(true, {user: game.user, releaseOthers: true});
     tokens.forEach(token => token.setTarget(true, {user: game.user, releaseOthers: false, groupSelection: true}));
 }
 
-async function handleDamageRoll(html, tokensInArea) {
-    const damageType = html.find('[name="damageType"]').val();
-    const damageAmount = parseInt(html.find('[name="damageAmount"]').val());
-    const saveDC = parseInt(html.find('[name="saveDC"]').val());
-    const saveType = html.find('[name="saveType"]').val();
-    
-    const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
-    
-    // Add handler to target tokens with crit failures
-    Hooks.once('renderChatMessage', (message, html) => {
-        const element = html.element?.[0] ?? html[0] ?? html;
-        element.querySelectorAll('.target-failures, .target-crit-failures').forEach(btn => {
+if (!globalThis.__dealDamageInBurstHookRegistered) {
+    Hooks.on('renderChatMessageHTML', (message, html) => {
+        html.querySelectorAll('.target-failures, .target-crit-failures').forEach(btn => {
+            if (btn.dataset.bound === "true") return;
+            btn.dataset.bound = "true";
             btn.addEventListener('click', handleTargetButtonClick);
         });
+    });
+    globalThis.__dealDamageInBurstHookRegistered = true;
+}
+
+async function handleDamageRoll({ damageType, damageAmount, saveDC, saveType }, tokensInArea) {
+    const results = await rollSaveAndApplyDamages(tokensInArea, damageType, damageAmount, saveDC, saveType);
+
+    // Create player message with limited details
+    players = game.users.filter(user => !user.isGM);    
+    ChatMessage.create({
+        content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, true),
+        users: players,
+        whisper: players.map(user => user.id)
     });
 
     // Create GM message with full details
@@ -189,85 +196,92 @@ async function handleDamageRoll(html, tokensInArea) {
         content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, false),
         whisper: [game.user.id],
     });
-
-    // Create player message with limited details
-    for (const user of game.users) {
-        if (user.isGM) continue;
-        ChatMessage.create({
-            content: getDamageSummaryHtml(results, damageType, damageAmount, saveDC, saveType, true),
-            user: user.id,
-            whisper: [user.id]
-        });
-    }
 }
 
-function openDamageRollWindow(tokensInArea) {
-    if (tokensInArea.length > 0) {
-        const damageTypes = CONFIG.PF2E.damageTypes;
-        new Dialog({
-            title: "Deal Damage",
-            content: `
-                <div class="form-group">
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <label style="width: 60px;">Damage</label>
-                        <input type="number" name="damageAmount" min="1" value="1" style="flex: 1;">
-                        <select name="damageType" style="flex: 1;">
-                            ${Object.entries(damageTypes).map(([key, _]) => 
-                                `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <label style="width: 60px;">DC</label>
-                        <input type="number" name="saveDC" min="1" value="1" style="flex: 1;">
-                        <select name="saveType" style="flex: 1;">
-                            ${Object.entries(CONFIG.PF2E.saves).map(([key, _]) => 
-                                `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <div style="display: flex; justify-content: space-around; align-items: center; margin: 0.5rem 0;">
-                        <label style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="checkbox" name="includePlayers" checked>
-                            Include Players?
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="checkbox" name="includeNPCs" checked>
-                            Include NPCs?
-                        </label>
-                    </div>
-                </div>
-            `,
-            buttons: {
-                cancel: {
-                    icon: '<i class="fas fa-times"></i>',
-                    label: "Cancel"
-                },
-                deal: {
-                    icon: '<i class="fas fa-check"></i>',
-                    label: "Deal Damage",
-                    callback: (html) => {
-                        const includePlayers = html.find('[name="includePlayers"]').is(':checked');
-                        const includeNPCs = html.find('[name="includeNPCs"]').is(':checked');
-                        const filteredTokens = tokensInArea.filter(token => 
-                            (includePlayers && token.actor.type === "character") || 
-                            (includeNPCs && token.actor.type !== "character")
-                        );
-                        if (filteredTokens.length === 0) {
-                            ui.notifications.warn("No valid tokens found!");
-                            return;
-                        }
-                        handleDamageRoll(html, filteredTokens);
-                    }
-                }
+async function openDamageRollWindow(tokensInArea) {
+    if (tokensInArea.length === 0) return;
+
+    const damageTypes = CONFIG.PF2E.damageTypes;
+    const content = `
+        <div class="form-group">
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <label style="width: 60px;">Damage</label>
+                <input type="number" name="damageAmount" min="1" value="1" style="flex: 1;">
+                <select name="damageType" style="flex: 1;">
+                    ${Object.entries(damageTypes).map(([key, _]) =>
+                        `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
+                    ).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <label style="width: 60px;">DC</label>
+                <input type="number" name="saveDC" min="1" value="1" style="flex: 1;">
+                <select name="saveType" style="flex: 1;">
+                    ${Object.entries(CONFIG.PF2E.saves).map(([key, _]) =>
+                        `<option value="${key}">${key.charAt(0).toUpperCase() + key.slice(1)}</option>`
+                    ).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <div style="display: flex; justify-content: space-around; align-items: center; margin: 0.5rem 0;">
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="checkbox" name="includePlayers" checked>
+                    Include Players?
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="checkbox" name="includeNPCs" checked>
+                    Include NPCs?
+                </label>
+            </div>
+        </div>
+    `;
+
+    const result = await foundry.applications.api.DialogV2.wait({
+        window: { title: "Deal Damage" },
+        content,
+        buttons: [
+            {
+                action: "cancel",
+                icon: "fas fa-times",
+                label: "Cancel",
+                callback: () => null
             },
-            default: "deal"
-        }).render(true);
+            {
+                action: "deal",
+                icon: "fas fa-check",
+                label: "Deal Damage",
+                default: true,
+                callback: (event, button, dialog) => {
+                    const root = dialog.element;
+                    return {
+                        damageAmount: parseInt(root.querySelector('[name="damageAmount"]').value),
+                        damageType: root.querySelector('[name="damageType"]').value,
+                        saveDC: parseInt(root.querySelector('[name="saveDC"]').value),
+                        saveType: root.querySelector('[name="saveType"]').value,
+                        includePlayers: root.querySelector('[name="includePlayers"]').checked,
+                        includeNPCs: root.querySelector('[name="includeNPCs"]').checked
+                    };
+                }
+            }
+        ],
+        rejectClose: false
+    });
+
+    if (!result) return;
+
+    const { includePlayers, includeNPCs } = result;
+    const filteredTokens = tokensInArea.filter(token =>
+        (includePlayers && token.actor.type === "character") ||
+        (includeNPCs && token.actor.type !== "character")
+    );
+    if (filteredTokens.length === 0) {
+        ui.notifications.warn("No valid tokens found!");
+        return;
     }
+    await handleDamageRoll(result, filteredTokens);
 }
 
 const tokensInArea = getTokensInRegion();
