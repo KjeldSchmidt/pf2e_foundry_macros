@@ -1,40 +1,18 @@
-function getTokensInTemplateArea() {
-    // Get the currently active measurement template
-    const template = canvas.templates.controlled[0] || canvas.templates.placeables[canvas.templates.placeables.length - 1];
-    if (!template) {
-        ui.notifications.warn("No measurement template selected!");
-        return;
+function getTokensInRegion() {
+    const region = canvas.regions.controlled[0]
+        || canvas.regions.hover
+        || canvas.regions.placeables[canvas.regions.placeables.length - 1];
+    if (!region) {
+        ui.notifications.warn("No region selected!");
+        return [];
     }
 
-    // Get all tokens in the scene
-    const tokens = canvas.tokens.placeables;
+    const tokenDocs = Array.from(region.document.tokens ?? []);
+    if (!tokenDocs.length) return [];
 
-    // Get the template's grid positions
-    const gridPositions = template._getGridHighlightPositions();
-    if (!gridPositions.length) {
-        ui.notifications.warn("Template has no grid positions!");
-        return;
-    }
-
-    const gridSize = canvas.grid.size;
-
-    // Filter tokens that are within the template's area
-    const tokensInArea = tokens.filter(token => {
-        if (!token.actor) return false; // We don't care about tokens that don't have an actor
-        if (!token.actor.system?.attributes?.hp) return false; // Nor those that don't have hit points
-        const tokenCenter = token.center;
-        // Round token position to grid
-        const gridX = Math.floor(tokenCenter.x / gridSize) * gridSize;
-        const gridY = Math.floor(tokenCenter.y / gridSize) * gridSize;
-        const isInArea = gridPositions.some(pos => 
-            pos.x === gridX && 
-            pos.y === gridY && 
-            !pos.collision // Only include if not blocked by walls
-        );
-        return isInArea;
-    });
-
-    return tokensInArea;
+    return tokenDocs
+        .map(td => td.object ?? canvas.tokens.get(td.id))
+        .filter(token => token && token.actor && token.actor.system?.attributes?.hp);
 }
 
 class SuccessDegree {
@@ -292,9 +270,9 @@ function openDamageRollWindow(tokensInArea) {
     }
 }
 
-const tokensInArea = getTokensInTemplateArea();
+const tokensInArea = getTokensInRegion();
 if (tokensInArea.length > 0) {
     openDamageRollWindow(tokensInArea);
 } else {
-    ui.notifications.warn("No tokens found in the template area!");
+    ui.notifications.warn("No tokens found in the region!");
 }
