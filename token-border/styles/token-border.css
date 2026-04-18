@@ -1,0 +1,43 @@
+.token-border-form {
+    width: 500px;
+    margin: auto;
+}
+
+.token-border-form .form-group {
+    margin-bottom: 0.5rem;
+}
+
+.token-border-form .image-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+}
+
+.token-border-form .image-picker-row input[name="imagePath"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.token-border-form .image-picker-row button[data-action="browse-image"] {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+.token-border-form select[name="border"] {
+    margin-bottom: 1rem;
+}
+
+.token-border-form .sheet-footer {
+    display: flex;
+    gap: 0.75rem;
+    /* padding-top: 0.75rem; */
+    /* margin: 0.5rem 0; */
+    /* border-top: 1px solid var(--color-border-light-tertiary, rgba(255, 255, 255, 0.1)); */
+}
+
+.token-border-form .sheet-footer button {
+    flex: 1 1 0;
+    padding: 0.5rem 1rem;
+}

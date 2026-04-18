@@ -10,6 +10,9 @@
   "esmodules": [
     "scripts/token-border.js"
   ],
+  "styles": [
+    "styles/token-border.css"
+  ],
   "version": "1.0.0",
   "compatibility": {
     "minimum": "12",

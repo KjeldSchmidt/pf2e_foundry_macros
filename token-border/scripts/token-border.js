@@ -1,5 +1,8 @@
 import { addBorder, loadImageAsBlob } from './border-tools.js';
 
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const FilePickerV2 = foundry.applications.apps.FilePicker.implementation;
+
 Hooks.once('init', async function() {
     console.log('Token Border | Initializing');
 });
@@ -8,27 +11,44 @@ Hooks.once('ready', async function() {
     console.log('Token Border | Ready');
 });
 
-class TokenBorderForm extends FormApplication {
-    constructor(token = null) {
-        super();
-        this.token = token;
+class TokenBorderForm extends HandlebarsApplicationMixin(ApplicationV2) {
+    constructor(options = {}) {
+        super(options);
+        this.token = options.token ?? null;
         this.currentBorder = 'Smooth_Brass.png';
         this.originalImageBlob = null;
-        this.selectedImagePath = token?.texture?.src || token?.document?.texture?.src || '';
+        this.selectedImagePath = this.token?.texture?.src || this.token?.document?.texture?.src || '';
     }
 
-    static get defaultOptions() {
-        return foundry.utils.mergeObject(super.defaultOptions, {
-            id: "token-border",
+    static DEFAULT_OPTIONS = {
+        id: "token-border",
+        tag: "form",
+        window: {
             title: "Token Border",
-            template: "modules/token-border/templates/token-border.html",
-            width: 600,
-            height: 750,
-            closeOnSubmit: true
-        });
-    }
+            icon: "fas fa-circle-notch"
+        },
+        position: {
+            width: "auto",
+            height: "auto"
+        },
+        form: {
+            handler: TokenBorderForm.#onSubmit,
+            closeOnSubmit: true,
+            submitOnChange: false
+        },
+        actions: {
+            cancel: TokenBorderForm.#onCancel,
+            "browse-image": TokenBorderForm.#onBrowseImage
+        }
+    };
 
-    getData() {
+    static PARTS = {
+        form: {
+            template: "modules/token-border/templates/token-border.html"
+        }
+    };
+
+    async _prepareContext(options) {
         return {
             border: this.currentBorder,
             tokenName: this.token?.name || 'No token selected',
@@ -37,52 +57,39 @@ class TokenBorderForm extends FormApplication {
         };
     }
 
-    activateListeners(html) {
-        super.activateListeners(html);
-        html.find('button[name="cancel"]').click(() => this.close());
-        html.find('select[name="border"]').change(async (event) => {
+    _onRender(context, options) {
+        super._onRender(context, options);
+        const root = this.element;
+
+        root.querySelector('select[name="border"]')?.addEventListener('change', async (event) => {
             this.currentBorder = event.target.value;
             await this.redrawCanvas();
         });
-        
-        // File picker for source image
-        html.find('button[name="browse-image"]').click(async () => {
-            const fp = new FilePicker({
-                type: 'image',
-                current: this.selectedImagePath,
-                callback: async (path) => {
-                    this.selectedImagePath = path;
-                    this.element.find('input[name="imagePath"]').val(path);
-                    this.originalImageBlob = await loadImageAsBlob(path);
-                    await this.redrawCanvas();
-                }
-            });
-            fp.browse();
+
+        root.querySelector('input[name="imagePath"]')?.addEventListener('click', () => {
+            this.#openImagePicker();
         });
-        
-        // Manual path input
-        html.find('input[name="imagePath"]').change(async (event) => {
-            const path = event.target.value;
-            if (path) {
-                this.selectedImagePath = path;
-                try {
-                    this.originalImageBlob = await loadImageAsBlob(path);
-                    await this.redrawCanvas();
-                } catch (e) {
-                    ui.notifications.error('Failed to load image from path');
-                }
-            }
-        });
+
+        if (this.selectedImagePath && !this.originalImageBlob) {
+            loadImageAsBlob(this.selectedImagePath)
+                .then((blob) => { this.originalImageBlob = blob; return this.redrawCanvas(); })
+                .catch((e) => {
+                    console.warn('Token Border | Could not load initial image:', e);
+                    return this.redrawCanvas();
+                });
+        } else {
+            this.redrawCanvas();
+        }
     }
 
     async redrawCanvas() {
-        const canvas = this.element.find('#token-preview')[0];
-        const display = this.element.find('#token-display')[0];
+        const canvas = this.element.querySelector('#token-preview');
+        const display = this.element.querySelector('#token-display');
+        if (!canvas || !display) return;
         const displayCtx = display.getContext('2d');
         const ctx = canvas.getContext('2d');
-        
+
         if (!this.originalImageBlob) {
-            // Clear the display if no image
             displayCtx.clearRect(0, 0, display.width, display.height);
             displayCtx.fillStyle = '#333';
             displayCtx.fillRect(0, 0, display.width, display.height);
@@ -92,20 +99,15 @@ class TokenBorderForm extends FormApplication {
             displayCtx.fillText('Select an image to preview', display.width / 2, display.height / 2);
             return;
         }
-        
-        // Add border to the image
+
         const borderedImage = await addBorder(this.originalImageBlob, `modules/token-border/assets/borders/${this.currentBorder}`);
-        
-        // Create image from blob
+
         const img = new Image();
         img.onload = () => {
-            // Set canvas size to match the bordered image
             canvas.width = img.width;
             canvas.height = img.height;
-            // Draw the image
             ctx.drawImage(img, 0, 0);
 
-            // Scale and draw to display canvas
             displayCtx.clearRect(0, 0, display.width, display.height);
             const scale = Math.min(display.width / img.width, display.height / img.height);
             const x = (display.width - img.width * scale) / 2;
@@ -115,50 +117,52 @@ class TokenBorderForm extends FormApplication {
         img.src = URL.createObjectURL(borderedImage);
     }
 
-    async _render(force, options) {
-        await super._render(force, options);
-        
-        // Load initial image if we have a path
-        if (this.selectedImagePath) {
-            try {
-                this.originalImageBlob = await loadImageAsBlob(this.selectedImagePath);
+    #openImagePicker() {
+        const fp = new FilePickerV2({
+            type: 'image',
+            current: this.selectedImagePath,
+            callback: async (path) => {
+                this.selectedImagePath = path;
+                const input = this.element.querySelector('input[name="imagePath"]');
+                if (input) input.value = path;
+                this.originalImageBlob = await loadImageAsBlob(path);
                 await this.redrawCanvas();
-            } catch (e) {
-                console.warn('Token Border | Could not load initial image:', e);
-                await this.redrawCanvas(); // Show placeholder
             }
-        } else {
-            await this.redrawCanvas(); // Show placeholder
-        }
+        });
+        fp.browse();
     }
 
-    async _updateObject(event, formData) {
+    static async #onCancel(event, target) {
+        this.close();
+    }
+
+    static async #onBrowseImage(event, target) {
+        this.#openImagePicker();
+    }
+
+    static async #onSubmit(event, form, formData) {
         if (!this.originalImageBlob) {
             ui.notifications.error('No image selected');
             return;
         }
-        
-        const previewCanvas = this.element.find('#token-preview')[0];
+
+        const previewCanvas = this.element.querySelector('#token-preview');
         const filename = `token-border-${foundry.utils.randomID()}.png`;
-        
-        // Convert canvas to blob
+
         const blob = await new Promise(resolve => previewCanvas.toBlob(resolve, 'image/png'));
         const file = new File([blob], filename, { type: 'image/png' });
 
-        // Ensure upload directory exists
         try {
-            await FilePicker.createDirectory('data', 'token-border');
+            await FilePickerV2.createDirectory('data', 'token-border');
         } catch (error) {
             if (!error.message.includes('already exists')) {
                 throw error;
             }
         }
 
-        // Upload the bordered image
-        const uploadedImage = await FilePicker.upload('data', 'token-border', file, {});
+        const uploadedImage = await FilePickerV2.upload('data', 'token-border', file, {});
         if (!uploadedImage) throw new Error('Failed to upload image');
 
-        // If we have a token, update it; otherwise just notify about the saved file
         if (this.token) {
             await this.token.document.update({
                 'texture.src': uploadedImage.path
@@ -172,12 +176,10 @@ class TokenBorderForm extends FormApplication {
 
 let tokenBorderForm = null;
 
-// Add scene control button to open standalone form
 // v13 API: controls is a Record<string, SceneControl>, not an array
 Hooks.on('getSceneControlButtons', (controls) => {
     if (!game.user.isGM) return;
-    
-    // v13: controls is an object, add new control as a property
+
     controls['token-border'] = {
         name: 'token-border',
         title: 'Token Border',
@@ -192,7 +194,7 @@ Hooks.on('getSceneControlButtons', (controls) => {
                 icon: 'fas fa-circle-notch',
                 visible: true,
                 button: true,
-                onClick: () => {
+                onChange: (event, active) => {
                     if (tokenBorderForm?.rendered) {
                         tokenBorderForm.close();
                     } else {
@@ -205,17 +207,22 @@ Hooks.on('getSceneControlButtons', (controls) => {
     };
 });
 
-// Add to token HUD controls (v13+)
-Hooks.on('getTokenActionButtons', (token, buttons) => {
+Hooks.on('renderTokenHUD', (hud, html, tokenData) => {
     if (!game.user.isGM) return;
-    
-    buttons.push({
-        name: 'token-border',
-        title: 'Add Border',
-        icon: 'fas fa-circle-notch',
-        visible: true,
-        onClick: () => {
-            new TokenBorderForm(token).render(true);
-        }
+
+    const root = html instanceof HTMLElement ? html : html[0];
+    if (!root) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'control-icon';
+    button.dataset.action = 'token-border';
+    button.title = 'Add Border';
+    button.innerHTML = '<i class="fas fa-circle-notch"></i>';
+    button.addEventListener('click', () => {
+        new TokenBorderForm({ token: hud.object }).render(true);
     });
+
+    const col = root.querySelector('.col.left') ?? root.querySelector('.left') ?? root;
+    col.appendChild(button);
 });

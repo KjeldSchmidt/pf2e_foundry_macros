@@ -1,4 +1,4 @@
-<form>
+<div class="token-border-form">
     {{#if hasToken}}
     <div class="form-group">
         <p>Applying border to: <strong>{{tokenName}}</strong></p>
@@ -6,9 +6,9 @@
     {{/if}}
     <div class="form-group">
         <label>Source Image</label>
-        <div class="form-fields">
-            <input type="text" name="imagePath" value="{{imagePath}}" placeholder="Path to image...">
-            <button type="button" name="browse-image" class="file-picker" data-type="image" title="Browse Files">
+        <div class="form-fields image-picker-row">
+            <input type="text" name="imagePath" value="{{imagePath}}" placeholder="Click to choose image..." readonly>
+            <button type="button" data-action="browse-image" class="file-picker" data-type="image" title="Browse Files">
                 <i class="fas fa-file-import fa-fw"></i>
             </button>
         </div>
@@ -46,8 +46,8 @@
         <button type="submit" name="submit">
             <i class="fas fa-check"></i> Apply Border
         </button>
-        <button type="button" name="cancel">
+        <button type="button" data-action="cancel">
             <i class="fas fa-times"></i> Cancel
         </button>
     </footer>
-</form>
+</div>
