@@ -1,11 +1,19 @@
 .journal-links-toc-copy-button {        
     position: relative;
-    right: 5px;
+    right: 4px;
     top: -5px;
     float: right;
     cursor: pointer;
 }
 
 .heading-link .journal-links-toc-copy-button {
-    top: 5px;
+    top: 4px;
+}
+
+.heading.h2 .journal-links-toc-copy-button {
+    right: calc(0px + var(--level-indent));
+}
+
+.heading.h3 .journal-links-toc-copy-button {
+    right: calc(0px + 2 * var(--level-indent));
 }
