@@ -1,10 +1,12 @@
 const observers = new Map();
 
-Hooks.on("renderJournalSheet", (app, html, data) => {
+Hooks.on("renderJournalEntrySheet", (app, html, data) => {
     observers.forEach(obs => obs.disconnect());
     observers.clear();
 
-    const pages = html.find(".journal-sidebar .pages-list .directory-item");
+    const $html = html instanceof jQuery ? html : $(html);
+
+    const pages = $html.find(".journal-sidebar .toc li.page");
     const journalEntryId = data.document._id;
 
     pages.each((index, elem) => {
@@ -16,7 +18,7 @@ Hooks.on("renderJournalSheet", (app, html, data) => {
                     const isActive = target.classList.contains('active');
                     
                     if (isActive && !wasActive) {
-                        addCopyButtons(html, journalEntryId);
+                        addCopyButtons($html, journalEntryId);
                     }
                 }
             });
@@ -35,7 +37,7 @@ function addCopyButtons(sheetHtml, journalEntryId) {
     // Remove existing copy buttons - this is necessary when right-clicking the active page, and will add multiple buttons otherwise.
     sheetHtml.find('.journal-links-toc-copy-button').remove();
     
-    const pages = sheetHtml.find(".journal-sidebar .pages-list .directory-item");
+    const pages = sheetHtml.find(".journal-sidebar .toc li.page");
 
     pages.each((index, elem) => {
         const journalEntry = jQuery(elem);
