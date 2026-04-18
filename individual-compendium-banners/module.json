@@ -8,13 +8,13 @@
       "discord": "KjeldSchmidt"
     }
   ],
-  "version": "1.0",
+  "version": "1.1",
   "compatibility": {
     "minimum": "11",
-    "verified": "13"
+    "verified": "14"
   },
   "esmodules": ["index.js"],
   "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/individual-compendium-banners",
   "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/individual-compendium-banners/module.json",
-  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/individual-compendium-banners-1.0/individual-compendium-banners-1.0.zip"
+  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/individual-compendium-banners-1.1/individual-compendium-banners-1.1.zip"
 }
