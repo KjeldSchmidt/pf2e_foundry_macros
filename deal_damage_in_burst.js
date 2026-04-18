@@ -37,6 +37,10 @@ async function determineSaveResult(actor, saveType, dc) {
         extraRollOptions: ["damaging-effect"]
     });
 
+    if (game.dice3d) {
+        game.dice3d.showForRoll(roll, game.user, true);
+    }
+
     const degreeIndex = roll?.degreeOfSuccess ?? roll?.options?.degreeOfSuccess ?? 0;
     const successDegree = [
         successDegrees.critFailure,
