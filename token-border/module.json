@@ -18,6 +18,7 @@
     "minimum": "14",
     "verified": "14"
   },
+  "readme": "README.md",
   "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/token-border",
   "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/token-border/module.json",
   "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/token-border-1.0/token-border-1.0.zip"
