@@ -54,8 +54,6 @@ function buildSection(speeds) {
 
 function injectSpeeds(actor, root) {
     if (!root) return;
-    console.log(`${MODULE_ID} | Injecting speeds for ${actor.name}`);
-
     root.querySelectorAll(".pf2e-speeds-in-sidebar").forEach(el => el.remove());
 
     const speeds = getSpeeds(actor);
