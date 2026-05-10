@@ -1,0 +1,25 @@
+{
+  "id": "pf2e-speeds-in-sidebar",
+  "title": "PF2e Speeds in Sidebar",
+  "description": "Adds the speeds of Player Charaters to the always-visible sidebar",
+  "authors": [
+    {
+      "name": "Kjeld Schmidt"
+    }
+  ],
+  "esmodules": [
+    "scripts/pf2e-speeds-in-sidebar.js"
+  ],
+  "styles": [
+    "styles/pf2e-speeds-in-sidebar.css"
+  ],
+  "version": "1.0",
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "readme": "README.md",
+  "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/pf2e-speeds-in-sidebar",
+  "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/pf2e-speeds-in-sidebar/module.json",
+  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/pf2e-speeds-in-sidebar-1.0/pf2e-speeds-in-sidebar-1.0.zip"
+}

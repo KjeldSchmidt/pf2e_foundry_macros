@@ -1,0 +1,36 @@
+.pf2e-speeds-in-sidebar header {
+    margin-bottom: 0.25rem;
+}
+
+.pf2e-speeds-in-sidebar ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.pf2e-speeds-in-sidebar li {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.15rem;
+    padding: 0.15rem 0.4rem;
+    font-size: var(--font-size-18);
+    line-height: 1.2;
+}
+
+.pf2e-speeds-in-sidebar li i {
+    align-self: center;
+    font-size: var(--font-size-16);
+    color: var(--text-light);
+}
+
+.pf2e-speeds-in-sidebar li .value {
+    font-weight: initial;
+    font-variant-numeric: tabular-nums;
+}
+
+.pf2e-speeds-in-sidebar li .unit {
+    font-size: var(--font-size-14);
+    opacity: 0.75;
+}
