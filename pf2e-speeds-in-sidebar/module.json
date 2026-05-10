@@ -1,7 +1,7 @@
 {
   "id": "pf2e-speeds-in-sidebar",
   "title": "PF2e Speeds in Sidebar",
-  "description": "Adds the speeds of Player Charaters to the always-visible sidebar",
+  "description": "Adds the speeds of Player Charaters to the always-visible character sheet sidebar",
   "authors": [
     {
       "name": "Kjeld Schmidt"
