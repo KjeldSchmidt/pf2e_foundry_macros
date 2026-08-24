@@ -4,9 +4,9 @@ Adds a third Actors-directory sort mode (by level/CR) to Foundry’s existing al
 
 Built-in resolvers: **pf2e**, **dnd5e**. Other systems fall back to name order unless a resolver is registered.
 
-## Extending from another module
+## Extending to another system
 
-Require this module, then on `setup` (or later):
+Make this module a dependency of the extending module, then on `setup` (or later):
 
 ```js
 Hooks.once("setup", () => {
