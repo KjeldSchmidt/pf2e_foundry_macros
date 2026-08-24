@@ -1,3 +1,5 @@
+import { getActorLevel, getLevelResolver, registerLevelResolver } from "./level-resolvers.js";
+
 const MODULE_ID = "order-actors-by-level";
 
 const MODES = Object.freeze({ ALPHA: "a", MANUAL: "m", LEVEL: "l" });
@@ -27,10 +29,10 @@ async function setMode(mode) {
 }
 
 function sortByLevel(a, b) {
-    const levelA = a.system?.details?.level?.value;
-    const levelB = b.system?.details?.level?.value;
-    const hasLevelA = Number.isFinite(levelA);
-    const hasLevelB = Number.isFinite(levelB);
+    const levelA = getActorLevel(a);
+    const levelB = getActorLevel(b);
+    const hasLevelA = levelA !== null;
+    const hasLevelB = levelB !== null;
 
     if (hasLevelA || hasLevelB) {
         const cmp = (hasLevelA ? levelA : Number.NEGATIVE_INFINITY) - (hasLevelB ? levelB : Number.NEGATIVE_INFINITY);
@@ -109,6 +111,12 @@ Hooks.once("init", () => {
             [MODES.LEVEL]: "Level"
         }
     });
+
+    game.modules.get(MODULE_ID).api = {
+        registerLevelResolver,
+        getLevelResolver,
+        getActorLevel
+    };
 });
 
 Hooks.once("ready", async () => {
@@ -122,5 +130,6 @@ Hooks.once("ready", async () => {
         ui.actors.render();
     }
 
-    _log("Ready");
+    const resolver = getLevelResolver();
+    _log(resolver ? `Ready (level resolver: ${game.system.id})` : `Ready (no level resolver for ${game.system.id}; level sort falls back to name)`);
 });

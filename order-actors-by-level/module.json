@@ -13,20 +13,13 @@
   "styles": [
     "styles/order-actors-by-level.css"
   ],
-  "version": "0.1",
+  "readme": "README.md",
+  "version": "1.0",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
   },
-  "relationships": {
-    "systems": [
-      {
-        "id": "pf2e",
-        "type": "system"
-      }
-    ]
-  },
   "url": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/tree/main/order-actors-by-level",
   "manifest": "https://raw.githubusercontent.com/KjeldSchmidt/pf2e_foundry_macros/refs/heads/main/order-actors-by-level/module.json",
-  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/order-actors-by-level-0.1/order-actors-by-level-0.1.zip"
+  "download": "https://github.com/KjeldSchmidt/pf2e_foundry_macros/releases/download/order-actors-by-level-1.0/order-actors-by-level-1.0.zip"
 }
