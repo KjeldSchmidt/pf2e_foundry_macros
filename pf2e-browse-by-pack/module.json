@@ -9,20 +9,20 @@
   ],
   "styles": ["styles/styles.css"],
   "esmodules": ["scripts/browse-by-pack.js"],
-  "version": "0.1",
+  "version": "0.2.0",
   "compatibility": {
-    "minimum": "13",
-    "verified": "13"
+    "minimum": "14",
+    "verified": "14"
   },
   "relationships": {
     "systems": [
       {
         "id": "pf2e",
-        "type": "system"
+        "type": "system",
+        "compatibility": {
+          "minimum": "8.0.0"
+        }
       }
     ]
   }
 }
-
-
-

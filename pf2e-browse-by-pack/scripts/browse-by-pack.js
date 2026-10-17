@@ -1,13 +1,14 @@
 /**
  * PF2e Browse by Pack
- * Adds a pack filter to the PF2e Compendium Browser
+ * Adds a pack filter to the PF2e Compendium Browser.
+ *
+ * PF2e v14 filters via Predicate over each index entry's `options` Set
+ * (CompendiumBrowserTab.buildPredicate / results). This module:
+ *  1. Tags each index entry with `pack:<collectionId>` after loadData
+ *  2. Injects a native checkbox group into filterData.checkboxes.pack
  */
 
 const MODULE_ID = "pf2e-browse-by-pack";
-const INJECTION_DELAY = 100;
-
-// Store selected packs per tab (Set of pack IDs)
-const selectedPacksByTab = new Map();
 
 Hooks.once("ready", () => {
   console.log(`${MODULE_ID} | Initializing`);
@@ -15,250 +16,148 @@ Hooks.once("ready", () => {
 });
 
 /**
- * Patch all compendium browser tab types to add pack filtering
+ * Patch all browser tabs so pack options and filter UI are available.
  */
 function patchCompendiumBrowserTabs() {
   const browser = game.pf2e?.compendiumBrowser;
-  if (!browser) {
-    console.log(`${MODULE_ID} | PF2e Compendium Browser not found`);
+  if (!browser?.tabs) {
+    console.warn(`${MODULE_ID} | PF2e Compendium Browser not found`);
     return;
   }
-  
-  // Patch each tab's filterIndexData method
-  for (const [tabName, tab] of Object.entries(browser.tabs)) {
-    if (tab && typeof tab.filterIndexData === "function" && !tab._browseByPackPatched) {
-      const originalFilter = tab.filterIndexData.bind(tab);
-      
-      tab.filterIndexData = function(entry, filterData) {
-        // First apply original filters
-        const passesOriginal = originalFilter(entry, filterData);
-        if (!passesOriginal) return false;
-        
-        // Then apply our pack filter
-        const selectedPacks = selectedPacksByTab.get(tabName);
-        
-        // If no packs selected, show all
-        if (!selectedPacks || selectedPacks.size === 0) return true;
-        
-        // Extract pack from UUID: "Compendium.world.invoker.Item.xxx" -> "world.invoker"
-        const uuid = entry.uuid ?? "";
-        const match = uuid.match(/^Compendium\.([^.]+\.[^.]+)\./);
-        const itemPack = match ? match[1] : "";
-        
-        return selectedPacks.has(itemPack);
-      };
-      
-      tab._browseByPackPatched = true;
-      console.log(`${MODULE_ID} | Patched filterIndexData for tab: ${tabName}`);
+
+  for (const tab of Object.values(browser.tabs)) {
+    if (!tab || tab._browseByPackPatched) continue;
+
+    wrapTabLoadData(tab);
+    tab._browseByPackPatched = true;
+
+    // Tabs may already be initialized before this module's ready hook.
+    if (tab.isInitialized) {
+      ensurePackOptionsOnIndex(tab);
+      ensurePackFilter(tab);
+      // Nudge Svelte $state so a late-added checkbox key is picked up if the UI is open.
+      tab.filterData = tab.filterData;
     }
+
+    console.log(`${MODULE_ID} | Patched tab: ${tab.tabName}`);
   }
 }
 
 /**
- * Hook into the compendium browser render to inject our pack filter UI
+ * Wrap loadData so pack tagging + filter injection happen before MiniSearch indexing
+ * and before defaultFilterData is cloned in init().
  */
-Hooks.on("renderCompendiumBrowser", (app, html, data) => {
-  console.log(`${MODULE_ID} | Compendium Browser rendered`);
-  
-  // Ensure tabs are patched (in case browser was created after ready)
-  patchCompendiumBrowserTabs();
-  
-  // v13 Application V2 passes HTMLElement, not jQuery
-  const element = html instanceof HTMLElement ? html : html[0];
-  
-  // Inject with delay to ensure sidebar is ready
-  setTimeout(() => injectPackFilter(app, element), INJECTION_DELAY);
-  
-  // Add listeners to tab buttons for re-injection on tab switch
-  addTabListeners(app, element);
-});
+function wrapTabLoadData(tab) {
+  const originalLoadData = tab.loadData.bind(tab);
 
-/**
- * Add event listeners to tab buttons to re-inject filter on tab change
- */
-function addTabListeners(app, element) {
-  const tabButtons = element.querySelectorAll("nav.tabs button, nav.tabs a, [data-tab], .item[data-tab]");
-  
-  tabButtons.forEach((btn) => {
-    if (btn.dataset.browseByPackListener) return;
-    btn.dataset.browseByPackListener = "true";
-    
-    btn.addEventListener("click", () => {
-      setTimeout(() => injectPackFilter(app, element), INJECTION_DELAY);
-    });
-  });
+  tab.loadData = async function loadDataWithPackFilter() {
+    await originalLoadData();
+    ensurePackOptionsOnIndex(this);
+    ensurePackFilter(this);
+  };
 }
 
 /**
- * Inject the pack filter into the compendium browser
+ * Add `pack:<collectionId>` to every index entry's options Set.
+ * MiniSearch stores options by reference, so later mutations stay visible to search hits.
  */
-function injectPackFilter(app, element) {
-  // Remove any existing filter (tab may have changed)
-  const existingFilter = element.querySelector(".browse-by-pack-filter");
-  existingFilter?.remove();
-  
-  // Get the current tab
+function ensurePackOptionsOnIndex(tab) {
+  for (const entry of tab.indexData ?? []) {
+    const packId = packIdFromUuid(entry.uuid);
+    if (!packId) continue;
+
+    if (!(entry.options instanceof Set)) {
+      entry.options = new Set(entry.options ?? []);
+    }
+    entry.options.add(`pack:${packId}`);
+  }
+}
+
+/**
+ * Inject / refresh the native Pack checkbox group on this tab's filterData.
+ * buildPredicate already turns checkbox selections into `{ or: ["pack:…"] }` statements.
+ */
+function ensurePackFilter(tab) {
+  if (!tab.filterData || !("checkboxes" in tab.filterData)) return;
+
+  const packIds = getPackIdsForTab(tab);
+  const previous = tab.filterData.checkboxes.pack;
+  const previousSelected = new Set(previous?.selected ?? []);
+
+  const options = {};
+  for (const packId of packIds) {
+    const pack = game.packs.get(packId);
+    options[packId] = {
+      label: pack?.metadata?.label ?? packId,
+      selected: previousSelected.has(packId),
+    };
+  }
+
+  const packFilter = {
+    isExpanded: previous?.isExpanded ?? false,
+    label: "Pack",
+    options,
+    optionPrefix: "pack",
+    selected: packIds.filter((id) => previousSelected.has(id)),
+  };
+
+  tab.filterData.checkboxes.pack = packFilter;
+
+  // Keep Clear/Reset in sync when defaultFilterData already exists (late patch).
+  // On first init, init() deep-clones filterData after loadData and picks this up.
+  if (tab.defaultFilterData?.checkboxes) {
+    tab.defaultFilterData.checkboxes.pack = foundry.utils.deepClone({
+      isExpanded: false,
+      label: "Pack",
+      options: Object.fromEntries(
+        Object.entries(options).map(([id, opt]) => [id, { label: opt.label, selected: false }]),
+      ),
+      optionPrefix: "pack",
+      selected: [],
+    });
+  }
+}
+
+/**
+ * Packs enabled for this browser tab in Compendium Browser settings.
+ */
+function getPackIdsForTab(tab) {
   const browser = game.pf2e?.compendiumBrowser;
-  const activeTab = browser?.activeTab;
-  const tabName = activeTab?.tabName;
-  
-  if (!activeTab || !tabName) {
-    console.log(`${MODULE_ID} | No active tab found`);
-    return;
+  const fromSettings = browser?.loadedPacks?.(tab.tabName);
+  if (Array.isArray(fromSettings) && fromSettings.length) {
+    return sortPackIds(fromSettings);
   }
-  
-  // Get available packs for this tab type
-  const packs = getAvailablePacksForTab(activeTab);
-  if (!packs.length) return;
-  
-  // Find the control-area which contains all fieldsets
-  const controlArea = element.querySelector(".control-area");
-  if (!controlArea) {
-    console.log(`${MODULE_ID} | Could not find .control-area`);
-    return;
+
+  const packs = new Set();
+  for (const entry of tab.indexData ?? []) {
+    const packId = packIdFromUuid(entry.uuid);
+    if (packId) packs.add(packId);
   }
-  
-  // Find all fieldsets and get the last one
-  const fieldsets = controlArea.querySelectorAll("fieldset");
-  if (!fieldsets.length) {
-    console.log(`${MODULE_ID} | Could not find any fieldsets`);
-    return;
-  }
-  const lastFieldset = fieldsets[fieldsets.length - 1];
-  
-  // Get currently selected packs for this tab (or create empty Set)
-  if (!selectedPacksByTab.has(tabName)) {
-    selectedPacksByTab.set(tabName, new Set());
-  }
-  const currentSelection = selectedPacksByTab.get(tabName);
-  
-  // Build pack filter element
-  const packFilterEl = buildPackFilterElement(packs, currentSelection, tabName, activeTab, element);
-  
-  // Inject after the last fieldset
-  lastFieldset.after(packFilterEl);
-  
-  console.log(`${MODULE_ID} | Pack filter injected for tab: ${tabName}`);
+  return sortPackIds([...packs]);
 }
 
-/**
- * Get available packs for a tab based on document type
- */
-function getAvailablePacksForTab(tab) {
-  const packs = [];
-  
-  // Determine what document type this tab uses
-  // Most tabs use Item, but bestiary uses Actor
-  const tabName = tab.tabName ?? "";
-  const docType = tabName === "bestiary" ? "Actor" : "Item";
-  
-  for (const pack of game.packs) {
-    if (pack.documentName === docType) {
-      packs.push(pack.collection);
-    }
-  }
-  
-  return packs.sort();
-}
-
-/**
- * Build the DOM element for the pack filter (checkbox list with collapsible header)
- */
-function buildPackFilterElement(packs, currentSelection, tabName, activeTab, element) {
-  const fieldset = document.createElement("fieldset");
-  fieldset.className = "svelte-pv9137 browse-by-pack-filter";
-  
-  // Create collapsible legend with button
-  const legend = document.createElement("legend");
-  legend.className = "svelte-pv9137";
-  
-  const expandBtn = document.createElement("button");
-  expandBtn.type = "button";
-  expandBtn.className = "flat expand-section svelte-pv9137";
-  expandBtn.setAttribute("aria-label", "expand");
-  expandBtn.setAttribute("aria-expanded", "true");
-  
-  const icon = document.createElement("i");
-  icon.className = "fa-solid fa-fw fa-chevron-down svelte-pv9137";
-  expandBtn.appendChild(icon);
-  
-  const spanText = document.createElement("span");
-  spanText.textContent = "Pack";
-  expandBtn.appendChild(spanText);
-  
-  legend.appendChild(expandBtn);
-  fieldset.appendChild(legend);
-  
-  // Create checkbox container
-  const checkboxContainer = document.createElement("div");
-  checkboxContainer.className = "checkbox-container svelte-obnnay";
-  
-  // Add checkbox for each pack
-  for (const pack of packs) {
-    const packObj = game.packs.get(pack);
-    const label = packObj?.metadata?.label ?? pack;
-    
-    const labelEl = document.createElement("label");
-    labelEl.className = "svelte-obnnay";
-    
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.name = pack;
-    checkbox.checked = currentSelection.has(pack);
-    
-    // Handle checkbox change
-    checkbox.addEventListener("change", () => {
-      if (checkbox.checked) {
-        currentSelection.add(pack);
-      } else {
-        currentSelection.delete(pack);
-      }
-      
-      console.log(`${MODULE_ID} | Packs selected for "${tabName}":`, Array.from(currentSelection));
-      
-      // Reset log count for debugging
-      if (activeTab) activeTab._browseByPackLogCount = 0;
-      
-      // Trigger filter re-application
-      triggerFilterUpdate(element);
-    });
-    
-    labelEl.appendChild(checkbox);
-    labelEl.appendChild(document.createTextNode(" " + label));
-    checkboxContainer.appendChild(labelEl);
-  }
-  
-  fieldset.appendChild(checkboxContainer);
-  
-  // Handle expand/collapse
-  expandBtn.addEventListener("click", () => {
-    const isExpanded = expandBtn.getAttribute("aria-expanded") === "true";
-    expandBtn.setAttribute("aria-expanded", !isExpanded);
-    icon.className = isExpanded 
-      ? "fa-solid fa-fw fa-chevron-up svelte-pv9137" 
-      : "fa-solid fa-fw fa-chevron-down svelte-pv9137";
-    checkboxContainer.style.display = isExpanded ? "none" : "";
+function sortPackIds(packIds) {
+  return packIds.slice().sort((a, b) => {
+    const labelA = game.packs.get(a)?.metadata?.label ?? a;
+    const labelB = game.packs.get(b)?.metadata?.label ?? b;
+    return labelA.localeCompare(labelB, game.i18n.lang);
   });
-  
-  return fieldset;
 }
 
 /**
- * Trigger filter re-application by poking the search box
+ * Extract compendium collection id from a document UUID.
  */
-function triggerFilterUpdate(element) {
-  const browserEl = document.getElementById("compendium-browser") ?? element;
-  const searchInput = browserEl.querySelector("input[type='search']");
-  
-  if (searchInput) {
-    const originalValue = searchInput.value;
-    searchInput.value = originalValue + "#";
-    searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-    
-    // Restore original value after debounce completes
-    setTimeout(() => {
-      searchInput.value = originalValue;
-      searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-    }, 250);
+function packIdFromUuid(uuid) {
+  if (!uuid || typeof uuid !== "string") return null;
+
+  try {
+    const parsed = foundry.utils.parseUuid(uuid);
+    if (parsed?.collection?.collection) return parsed.collection.collection;
+  } catch {
+    // fall through to regex
   }
+
+  // Compendium.<package>.<name>.<DocumentType>.<id>
+  const match = uuid.match(/^Compendium\.([^.]+\.[^.]+)\./);
+  return match?.[1] ?? null;
 }
